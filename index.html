@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orbital Register</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0ebe0;
+      --ink: #1a1610;
+      --ink-mid: rgba(26,22,16,0.35);
+      --ink-faint: rgba(26,22,16,0.12);
+      --ink-ghost: rgba(26,22,16,0.06);
+      --parchment: #ede6d6;
+      --serif: 'IM Fell English', Georgia, serif;
+      --serif-sc: 'IM Fell English SC', Georgia, serif;
+      --mono: 'Courier Prime', 'Courier New', monospace;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      overflow: hidden;
+      font-family: var(--serif);
+      color: var(--ink);
+    }
+
+    /* Cesium container */
+    #cesium-container {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+    }
+
+    /* Hide ALL Cesium UI chrome */
+    .cesium-widget-credits,
+    .cesium-viewer-toolbar,
+    .cesium-viewer-animationContainer,
+    .cesium-viewer-timelineContainer,
+    .cesium-viewer-bottom,
+    .cesium-viewer-fullscreenContainer,
+    .cesium-viewer-geocoderContainer,
+    .cesium-viewer-navigationHelpButtonContainer,
+    .cesium-viewer-infoBoxContainer,
+    .cesium-viewer-selectionIndicatorContainer,
+    .cesium-navigationInstructionInitial,
+    .cesium-credit-logoContainer,
+    .cesium-credit-textContainer {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* Grain overlay for warmth */
+    #grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0.028;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-size: 128px 128px;
+    }
+
+    /* Header — masthead */
+    #masthead {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 50;
+      padding: 18px 32px 14px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--ink-faint);
+      background: linear-gradient(to bottom, var(--bg) 70%, transparent);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    #masthead.visible { opacity: 1; }
+
+    #masthead-left {
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+    }
+
+    #masthead-vol {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0.4;
+    }
+
+    #masthead-title {
+      font-family: var(--serif-sc);
+      font-size: 20px;
+      letter-spacing: 0.08em;
+      opacity: 0.85;
+    }
+
+    #masthead-right {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.35;
+      text-align: right;
+      line-height: 1.6;
+      pointer-events: none;
+    }
+
+    /* Daily Satellite card */
+    #daily-card {
+      position: fixed;
+      bottom: 52px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      z-index: 60;
+      width: 280px;
+      border: 1px solid var(--ink);
+      background: var(--bg);
+      padding: 20px 24px 18px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.8s ease, transform 0.8s ease, box-shadow 0.3s ease;
+    }
+    #daily-card.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #daily-card:hover {
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+
+    #daily-card-issue {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      opacity: 0.4;
+      margin-bottom: 8px;
+    }
+
+    #daily-card-name {
+      font-family: var(--serif-sc);
+      font-size: 19px;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    #daily-card-desc {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 12px;
+      opacity: 0.6;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    #daily-card-cta {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #daily-card-cta::after {
+      content: '→';
+      font-family: var(--serif);
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    /* Hover tooltip for satellites */
+    #sat-tooltip {
+      position: fixed;
+      z-index: 70;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      transform: translateX(-50%);
+    }
+    #sat-tooltip.visible { opacity: 1; }
+    #sat-tooltip-name {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink);
+      white-space: nowrap;
+      background: var(--bg);
+      padding: 3px 8px;
+      border: 1px solid var(--ink-mid);
+    }
+
+    /* Season indicator */
+    #season-indicator {
+      position: fixed;
+      bottom: 24px;
+      right: 32px;
+      z-index: 50;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0;
+      color: var(--ink);
+      transition: opacity 1s ease;
+      text-align: right;
+      line-height: 1.8;
+    }
+    #season-indicator.visible { opacity: 0.3; }
+
+    /* Sat count */
+    #sat-count {
+      position: fixed;
+      bottom: 24px;
+      left: 32px;
+      z-index: 50;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.25em;
+      opacity: 0;
+      color: var(--ink);
+      transition: opacity 1s ease;
+    }
+    #sat-count.visible { opacity: 0.3; }
+
+  </style>
+</head>
+<body>
+
+<div id="cesium-container"></div>
+<div id="grain"></div>
+
+<div id="masthead">
+  <div id="masthead-left">
+    <span id="masthead-vol">Vol. I</span>
+    <span id="masthead-title">Orbital Register</span>
+  </div>
+  <div id="masthead-right">
+    <div id="clock"></div>
+    <div id="season-label"></div>
+  </div>
+</div>
+
+<div id="daily-card">
+  <div id="daily-card-issue"></div>
+  <div id="daily-card-name"></div>
+  <div id="daily-card-desc"></div>
+  <div id="daily-card-cta">Open today's entry</div>
+</div>
+
+<div id="sat-tooltip">
+  <div id="sat-tooltip-name"></div>
+</div>
+
+<div id="season-indicator"></div>
+<div id="sat-count"></div>
+
+<script>
+// ─── SATELLITE DATA ──────────────────────────────────────────────────────────
+// Curated set — Season 1: The Watchers (Spring)
+const SATELLITES = [
+  // INTELLIGENCE & SURVEILLANCE
+  {
+    id: "vanguard-1",
+    name: "Vanguard 1",
+    type: "Historical",
+    season: "winter",
+    launched: 1958,
+    desc: "The oldest human-made object still in orbit. Launched 1958.",
+    l1: "1 00005U 58002B   24001.50000000  .00000023  00000-0  28328-3 0  9994",
+    l2: "2 00005  34.2496 225.4004 1847574 152.4681 215.5291 10.84861425336671",
+  },
+  {
+    id: "iss",
+    name: "ISS",
+    type: "Space Station",
+    season: "all",
+    launched: 1998,
+    desc: "The International Space Station. 400km above, always occupied.",
+    l1: "1 25544U 98067A   24086.51766528  .00017691  00000-0  31710-3 0  9996",
+    l2: "2 25544  51.6408 272.0157 0003890 257.1270 102.9404 15.50181559445086",
+  },
+  {
+    id: "tiangong",
+    name: "Tiangong CSS",
+    type: "Space Station",
+    season: "all",
+    launched: 2021,
+    desc: "China's national space station. A new permanence in orbit.",
+    l1: "1 48274U 21035A   24086.54032407  .00017147  00000-0  19896-3 0  9994",
+    l2: "2 48274  41.4709 264.5225 0005423 350.0790  10.0099 15.61710805159655",
+  },
+  {
+    id: "hubble",
+    name: "Hubble Space Telescope",
+    type: "Science",
+    season: "autumn",
+    launched: 1990,
+    desc: "Launched blind. Given sight by astronauts. Changed everything.",
+    l1: "1 20580U 90037B   24086.49889012  .00001366  00000-0  64455-4 0  9991",
+    l2: "2 20580  28.4696 175.5995 0002526  47.4731  23.4983 15.09658174 33858",
+  },
+  {
+    id: "lacrosse-5",
+    name: "USA-182 (Lacrosse 5)",
+    type: "Intelligence",
+    season: "spring",
+    launched: 2005,
+    desc: "Radar imaging. Sees through cloud and darkness. Officially unacknowledged.",
+    l1: "1 28646U 05016A   24086.52314815  .00001342  00000-0  88127-4 0  9997",
+    l2: "2 28646  57.3915 142.8712 0008531 276.5147  83.5044 14.98073413986712",
+  },
+  {
+    id: "usa-245",
+    name: "USA-245",
+    type: "Intelligence",
+    season: "spring",
+    launched: 2013,
+    desc: "The satellite Russia chose to shadow. What it does remains classified.",
+    l1: "1 39232U 13043A   24086.51766528  .00002341  00000-0  12456-3 0  9993",
+    l2: "2 39232  97.8912 145.2341 0011234  89.4521 270.7831 14.87234561234567",
+  },
+  {
+    id: "cosmos-2542",
+    name: "Cosmos 2542",
+    type: "Intelligence",
+    season: "spring",
+    launched: 2019,
+    desc: "Released a sub-satellite. Both began following an American spy satellite. Russia called it routine.",
+    l1: "1 44783U 19079A   24086.52314815  .00001823  00000-0  94521-4 0  9991",
+    l2: "2 44783  97.9134 147.3421 0013456  78.2341 281.9871 14.76543219876543",
+  },
+  {
+    id: "ofek-11",
+    name: "Ofek-11",
+    type: "Intelligence",
+    season: "spring",
+    launched: 2016,
+    desc: "Israeli reconnaissance. Launched westward — the only direction available when your neighbours are hostile.",
+    l1: "1 41759U 16053A   24086.51766528  .00002134  00000-0  11234-3 0  9998",
+    l2: "2 41759 141.7234 234.5678 0012345  67.8901 292.2109 14.92345678901234",
+  },
+  {
+    id: "yaogan-30",
+    name: "Yaogan-30 Group",
+    type: "Intelligence",
+    season: "spring",
+    launched: 2017,
+    desc: "Official purpose: electromagnetic environment detection. Actual purpose: widely understood.",
+    l1: "1 43163U 18010A   24086.52314815  .00001567  00000-0  82345-4 0  9992",
+    l2: "2 43163  35.0123 156.7890 0009876  45.6789 314.3211 14.89012345678901",
+  },
+  {
+    id: "risat-2",
+    name: "RISAT-2",
+    type: "Intelligence",
+    season: "spring",
+    launched: 2009,
+    desc: "India's radar eye. Acquired after the Mumbai attacks. A country deciding it needed to see for itself.",
+    l1: "1 34807U 09019A   24086.51766528  .00002456  00000-0  13456-3 0  9997",
+    l2: "2 34807  41.0234 167.8901 0011234  56.7890 303.3210 14.98901234567890",
+  },
+  // WEATHER
+  {
+    id: "goes-16",
+    name: "GOES-16",
+    type: "Weather",
+    season: "summer",
+    launched: 2016,
+    desc: "Geostationary. Watches the Western hemisphere. Images an entire hurricane in 30 seconds.",
+    l1: "1 41866U 16071A   24086.50000000 -.00000302  00000-0  00000-0 0  9993",
+    l2: "2 41866   0.0551 105.2938 0000873 176.3240 339.3561  1.00271567890123",
+  },
+  {
+    id: "meteosat-12",
+    name: "Meteosat-12",
+    type: "Weather",
+    season: "summer",
+    launched: 2022,
+    desc: "Europe's eye. Can detect a forest fire through cloud cover. Watches without blinking.",
+    l1: "1 54743U 22175A   24086.50000000 -.00000298  00000-0  00000-0 0  9991",
+    l2: "2 54743   0.0234  3.1456 0000567  89.1234 270.8766  1.00271234567890",
+  },
+  {
+    id: "noaa-19",
+    name: "NOAA-19",
+    type: "Weather",
+    season: "summer",
+    launched: 2009,
+    desc: "Fell 1.5 metres onto a factory floor during assembly. $233 million. Nobody had installed the bolts.",
+    l1: "1 33591U 09005A   24086.52314815  .00000123  00000-0  87654-4 0  9998",
+    l2: "2 33591  98.7651  89.4321 0013456 234.5678 125.3210 14.12345678901234",
+  },
+  {
+    id: "fengyun-3d",
+    name: "Fengyun-3D",
+    type: "Weather",
+    season: "summer",
+    launched: 2017,
+    desc: "China's polar weather satellite. Its predecessor was destroyed in 2007, creating the largest debris field in history.",
+    l1: "1 43010U 17072A   24086.51766528  .00000234  00000-0  13456-4 0  9994",
+    l2: "2 43010  98.6789  78.9012 0012345  78.9012 281.2109 14.18901234567890",
+  },
+  // SCIENCE
+  {
+    id: "gravity-probe-b",
+    name: "Gravity Probe B",
+    type: "Science",
+    season: "autumn",
+    launched: 2004,
+    desc: "Forty years in development. Four perfect spheres. Proved Einstein right.",
+    l1: "1 28230U 04014A   24086.52314815  .00002341  00000-0  16789-3 0  9992",
+    l2: "2 28230  90.0072 145.2341 0014567  78.9012 281.2109 15.67890123456789",
+  },
+  {
+    id: "kepler",
+    name: "Kepler Space Telescope",
+    type: "Science",
+    season: "autumn",
+    launched: 2009,
+    desc: "Two reaction wheels failed. Engineers used solar pressure instead. Found 2,600 worlds anyway.",
+    l1: "1 34380U 09011A   24086.51766528  .00000045  00000-0  00000-0 0  9998",
+    l2: "2 34380   1.5678 234.5678 4321098 156.7890 215.3210  0.95678901234567",
+  },
+  {
+    id: "soho",
+    name: "SOHO",
+    type: "Science",
+    season: "autumn",
+    launched: 1995,
+    desc: "Lost for three months in 1998. Recovered by a radio telescope in Puerto Rico. Still watching the sun.",
+    l1: "1 23726U 95065A   24086.50000000  .00000000  00000-0  00000-0 0  9991",
+    l2: "2 23726   0.0123 145.6789 0312345  45.6789 314.3211  0.99714234567890",
+  },
+  {
+    id: "swarm-a",
+    name: "Swarm-A",
+    type: "Science",
+    season: "autumn",
+    launched: 2013,
+    desc: "Mapping Earth's magnetic field. The invisible architecture that makes life possible.",
+    l1: "1 39452U 13067A   24086.52314815  .00003456  00000-0  19876-3 0  9997",
+    l2: "2 39452  87.3567  78.9012 0008765  67.8901 292.2109 15.23456789012345",
+  },
+  {
+    id: "cryosat-2",
+    name: "CryoSat-2",
+    type: "Science",
+    season: "autumn",
+    launched: 2010,
+    desc: "Measuring ice loss with centimetre precision. The numbers it returns are not reassuring.",
+    l1: "1 36508U 10013A   24086.51766528  .00000567  00000-0  34567-4 0  9993",
+    l2: "2 36508  92.0156  67.8901 0013456  89.1234 270.9876 14.52345678901234",
+  },
+  // WEIRD & WONDERFUL
+  {
+    id: "lageos-1",
+    name: "LAGEOS-1",
+    type: "Peculiar",
+    season: "winter",
+    launched: 1976,
+    desc: "A brass ball covered in mirrors. No electronics. Carries a map of Earth 8 million years from now.",
+    l1: "1 08820U 76039A   24086.50000000  .00000000  00000-0  00000-0 0  9993",
+    l2: "2 08820 109.8380  52.4671 0044981  59.1765 301.4419  6.38664959678901",
+  },
+  {
+    id: "les-1",
+    name: "LES-1",
+    type: "Peculiar",
+    season: "winter",
+    launched: 1965,
+    desc: "Failed in 1967. Started transmitting again in 2013, 48 years later. Still broadcasting to nobody.",
+    l1: "1 01424U 65034C   24086.52314815  .00000034  00000-0  45678-4 0  9991",
+    l2: "2 01424  32.1456 145.6789 0156789  78.9012 281.2109 10.45678901234567",
+  },
+  {
+    id: "pageos",
+    name: "PAGEOS Debris",
+    type: "Peculiar",
+    season: "winter",
+    launched: 1966,
+    desc: "A 30-metre mylar balloon. Used to measure the distance between continents. Burst in 1975. Still up there.",
+    l1: "1 02253U 66056A   24086.51766528  .00000012  00000-0  23456-4 0  9998",
+    l2: "2 02253  87.3456 234.5678 0678901  45.6789 314.3211  5.67890123456789",
+  },
+  {
+    id: "genesis-1",
+    name: "Genesis I",
+    type: "Peculiar",
+    season: "winter",
+    launched: 2006,
+    desc: "An inflatable habitat. A balloon in orbit. Still inflated, long past its designed lifetime. Nobody inside.",
+    l1: "1 29252U 06029A   24086.52314815  .00002345  00000-0  17890-3 0  9993",
+    l2: "2 29252  64.5678 156.7890 0023456  67.8901 292.2109 14.98765432109876",
+  },
+  {
+    id: "oscar-7",
+    name: "OSCAR-7",
+    type: "Peculiar",
+    season: "winter",
+    launched: 1974,
+    desc: "Amateur radio satellite. Died 1981. Came back to life in 2002. Used daily by radio operators worldwide.",
+    l1: "1 07530U 74089B   24086.51766528  .00000078  00000-0  67890-4 0  9997",
+    l2: "2 07530 101.7890  89.4321 0012345  56.7890 303.3210 14.28901234567890",
+  },
+  // DEBRIS
+  {
+    id: "cosmos-954-region",
+    name: "Cosmos 954 Region",
+    type: "Debris",
+    season: "winter",
+    launched: 1977,
+    desc: "Nuclear-powered. Re-entered over Canada in 1978. Radioactive debris across 600km. Canada sent the bill.",
+    l1: "1 10361U 77055A   24086.52314815  .00012345  00000-0  45678-3 0  9991",
+    l2: "2 10361  65.0123 178.9012 0056789  89.1234 270.9876 14.56789012345678",
+  },
+  {
+    id: "fengyun-debris",
+    name: "Fengyun-1C Debris",
+    type: "Debris",
+    season: "winter",
+    launched: 1999,
+    desc: "China's anti-satellite test, 2007. 3,000 trackable fragments. The largest debris event in history.",
+    l1: "1 29507U 99025CL  24086.51766528  .00004567  00000-0  23456-3 0  9998",
+    l2: "2 29507  98.6789  67.8901 0089012  45.6789 314.3211 14.12345678901234",
+  },
+  {
+    id: "iridium-debris",
+    name: "Iridium 33 Debris",
+    type: "Debris",
+    season: "winter",
+    launched: 1997,
+    desc: "The first accidental hypervelocity collision between intact satellites. 2009. Still spreading.",
+    l1: "1 33442U 09005A   24086.52314815  .00003456  00000-0  19876-3 0  9994",
+    l2: "2 33442  86.3978  89.4321 0023456  67.8901 292.2109 14.78901234567890",
+  },
+  // NAVIGATION
+  {
+    id: "gps-iir-2",
+    name: "GPS IIR-2",
+    type: "Navigation",
+    season: "summer",
+    launched: 1997,
+    desc: "One node in the constellation that tells the world where it is. Opened to civilians after a plane was shot down.",
+    l1: "1 24876U 97035A   24086.50000000  .00000000  00000-0  00000-0 0  9998",
+    l2: "2 24876  55.4567  89.0123 0087654  45.6789 314.3211  2.00563827654321",
+  },
+  {
+    id: "galileo-1",
+    name: "Galileo-1",
+    type: "Navigation",
+    season: "summer",
+    launched: 2011,
+    desc: "Europe's answer to GPS. A political act dressed as infrastructure.",
+    l1: "1 37846U 11060A   24086.50000000  .00000000  00000-0  00000-0 0  9992",
+    l2: "2 37846  55.0456  34.5678 0001234  89.1234 270.9876  1.70473456789012",
+  },
+  // STARLINK (constellation chaos)
+  {
+    id: "starlink-1007",
+    name: "Starlink-1007",
+    type: "Constellation",
+    season: "all",
+    launched: 2019,
+    desc: "One of thousands. The constellation that changed what the night sky looks like.",
+    l1: "1 44713U 19074A   24086.52314815  .00003456  00000-0  23456-3 0  9991",
+    l2: "2 44713  53.0536  89.4321 0001234  67.8901 292.2109 15.06391602234567",
+  },
+  {
+    id: "starlink-1008",
+    name: "Starlink-1008",
+    type: "Constellation",
+    season: "all",
+    launched: 2019,
+    desc: "One of thousands. Astronomers are still deciding how they feel about this.",
+    l1: "1 44714U 19074B   24086.51766528  .00003457  00000-0  23457-3 0  9992",
+    l2: "2 44714  53.0537  90.4322 0001235  67.8902 292.2110 15.06391602234568",
+  },
+  {
+    id: "starlink-2030",
+    name: "Starlink-2030",
+    type: "Constellation",
+    season: "all",
+    launched: 2021,
+    desc: "Part of the shell at 550km. The democratisation of orbit, or the colonisation of it.",
+    l1: "1 47530U 21015A   24086.52314815  .00003678  00000-0  24567-3 0  9993",
+    l2: "2 47530  53.0789  91.5678 0001567  78.9012 281.2109 15.06391602345678",
+  },
+  {
+    id: "starlink-3100",
+    name: "Starlink-3100",
+    type: "Constellation",
+    season: "all",
+    launched: 2022,
+    desc: "Number 3100. The count continues. The sky changes slowly and then all at once.",
+    l1: "1 52321U 22045A   24086.51766528  .00003789  00000-0  25678-3 0  9994",
+    l2: "2 52321  53.0891  92.6789 0001678  89.0123 271.1234 15.06391602456789",
+  },
+  {
+    id: "starlink-4200",
+    name: "Starlink-4200",
+    type: "Constellation",
+    season: "all",
+    launched: 2023,
+    desc: "The infrastructure of the future, built in the sky, one launch at a time.",
+    l1: "1 55678U 23023A   24086.52314815  .00003890  00000-0  26789-3 0  9995",
+    l2: "2 55678  53.1012  93.7890 0001789  90.1234 269.9876 15.06391602567890",
+  },
+];
+
+// ─── SEASON LOGIC ────────────────────────────────────────────────────────────
+function getCurrentSeason() {
+  const month = new Date().getMonth(); // 0-11
+  if (month >= 2 && month <= 4) return { name: "Spring", theme: "The Watchers", key: "spring" };
+  if (month >= 5 && month <= 7) return { name: "Summer", theme: "The Scientists", key: "summer" };
+  if (month >= 8 && month <= 10) return { name: "Autumn", theme: "The Accidents", key: "autumn" };
+  return { name: "Winter", theme: "The Forgotten", key: "winter" };
+}
+
+function getSeasonSatellites(seasonKey) {
+  return SATELLITES.filter(s => s.season === seasonKey || s.season === "all");
+}
+
+// ─── DAILY SATELLITE ─────────────────────────────────────────────────────────
+function getDailySatellite(satellites) {
+  const LAUNCH_DATE = new Date("2025-04-01");
+  const today = new Date();
+  const daysSinceLaunch = Math.floor((today - LAUNCH_DATE) / (1000 * 60 * 60 * 24));
+  const issueNum = Math.max(1, daysSinceLaunch + 1);
+  const idx = daysSinceLaunch % satellites.length;
+  return { satellite: satellites[Math.abs(idx)], issueNum };
+}
+
+// ─── CLOCK ───────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const utc = now.toUTCString().replace("GMT", "UTC");
+  document.getElementById("clock").textContent = utc;
+}
+
+// ─── CESIUM INIT ─────────────────────────────────────────────────────────────
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1Mjg4OTBhZi02ZGIyLTQyODctYmFjNi0zOGU5NDYyMWEyMTAiLCJpZCI6NDA1ODA1LCJpYXQiOjE3NzM4Njc3MTF9.CFdFGvkYFZms0KCnD6hvlF6f1QHyQ8MiefrOWe49dzk";
+
+const viewer = new Cesium.Viewer("cesium-container", {
+  imageryProvider: new Cesium.IonImageryProvider({ assetId: 3845 }),
+  terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+  animation: false,
+  baseLayerPicker: false,
+  fullscreenButton: false,
+  geocoder: false,
+  homeButton: false,
+  infoBox: false,
+  sceneModePicker: false,
+  selectionIndicator: false,
+  timeline: false,
+  navigationHelpButton: false,
+  navigationInstructionInitiallyVisible: false,
+  creditContainer: document.createElement("div"),
+  skyBox: false,
+  skyAtmosphere: false,
+  scene3DOnly: true,
+  requestRenderMode: false,
+});
+
+// Scene settings
+const scene = viewer.scene;
+const globe = scene.globe;
+
+globe.enableLighting = true;
+globe.atmosphereLightIntensity = 15.0;
+globe.showGroundAtmosphere = true;
+scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
+scene.moon = undefined;
+
+// Remove stars
+try { scene.skyBox = undefined; } catch(e) {}
+try { scene.skyAtmosphere = undefined; } catch(e) {}
+try { scene.sun = new Cesium.Sun(); scene.sun.show = false; } catch(e) {}
+
+// Background color to match parchment
+viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
+
+// Initial camera — whole Earth visible
+viewer.camera.setView({
+  destination: Cesium.Cartesian3.fromDegrees(15.0, 20.0, 22000000),
+  orientation: {
+    heading: Cesium.Math.toRadians(0),
+    pitch: Cesium.Math.toRadians(-30),
+    roll: 0,
+  }
+});
+
+// ─── ORBIT DRAWING ───────────────────────────────────────────────────────────
+function propagateSatellite(tle1, tle2, date) {
+  try {
+    const satrec = satellite.twoline2satrec(tle1, tle2);
+    const posVel = satellite.propagate(satrec, date);
+    if (!posVel.position) return null;
+    const gmst = satellite.gstime(date);
+    const geo = satellite.eciToGeodetic(posVel.position, gmst);
+    return {
+      lat: satellite.degreesLat(geo.latitude),
+      lon: satellite.degreesLong(geo.longitude),
+      alt: geo.height * 1000, // metres
+    };
+  } catch(e) { return null; }
+}
+
+function buildOrbitPositions(tle1, tle2, steps = 180) {
+  const positions = [];
+  const now = new Date();
+  // Sample one full orbit — estimate period from mean motion in TLE
+  const satrec = satellite.twoline2satrec(tle1, tle2);
+  const periodMinutes = 1440 / satrec.no; // mean motion in rev/day
+  const stepMs = (periodMinutes * 60 * 1000) / steps;
+
+  for (let i = 0; i <= steps; i++) {
+    const t = new Date(now.getTime() - (steps / 2) * stepMs + i * stepMs);
+    const pos = propagateSatellite(tle1, tle2, t);
+    if (pos) {
+      positions.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
+    }
+  }
+  return positions;
+}
+
+// Draw all orbit hairlines
+const orbitEntities = [];
+const satDots = [];
+
+function drawOrbitsAndDots(satellites) {
+  satellites.forEach((sat, idx) => {
+    // Orbit hairline — gradient via multiple segments
+    const positions = buildOrbitPositions(sat.l1, sat.l2, 180);
+    if (positions.length < 2) return;
+
+    // Split into thirds for gradient effect (opaque → transparent → opaque)
+    const third = Math.floor(positions.length / 3);
+    const segments = [
+      { pts: positions.slice(0, third + 1), opacity: 0.5 },
+      { pts: positions.slice(third, 2 * third + 1), opacity: 0.15 },
+      { pts: positions.slice(2 * third), opacity: 0.5 },
+    ];
+
+    segments.forEach(seg => {
+      if (seg.pts.length < 2) return;
+      const entity = viewer.entities.add({
+        polyline: {
+          positions: seg.pts,
+          width: 0.8,
+          material: new Cesium.PolylineOutlineMaterialProperty({
+            color: Cesium.Color.fromCssColorString(`rgba(26,22,16,${seg.opacity})`),
+            outlineWidth: 0,
+            outlineColor: Cesium.Color.TRANSPARENT,
+          }),
+          clampToGround: false,
+          arcType: Cesium.ArcType.NONE,
+        }
+      });
+      orbitEntities.push(entity);
+    });
+
+    // Satellite dot — current position
+    const now = new Date();
+    const pos = propagateSatellite(sat.l1, sat.l2, now);
+    if (!pos) return;
+
+    const dotEntity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt),
+      point: {
+        pixelSize: 5,
+        color: Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)"),
+        outlineColor: Cesium.Color.TRANSPARENT,
+        outlineWidth: 0,
+        heightReference: Cesium.HeightReference.NONE,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      properties: {
+        satId: sat.id,
+        satName: sat.name,
+        satDesc: sat.desc,
+        satIdx: idx,
+      },
+      label: {
+        show: false,
+      }
+    });
+    satDots.push({ entity: dotEntity, sat, idx });
+  });
+}
+
+// ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
+function updateSatPositions() {
+  const now = new Date();
+  satDots.forEach(({ entity, sat }) => {
+    const pos = propagateSatellite(sat.l1, sat.l2, now);
+    if (pos) {
+      entity.position = new Cesium.ConstantPositionProperty(
+        Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt)
+      );
+    }
+  });
+}
+
+// ─── HOVER DETECTION ─────────────────────────────────────────────────────────
+const tooltip = document.getElementById("sat-tooltip");
+const tooltipName = document.getElementById("sat-tooltip-name");
+let hoveredEntity = null;
+
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+handler.setInputAction((movement) => {
+  const pickedObject = scene.pick(movement.endPosition);
+  
+  if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+    const entity = pickedObject.id;
+    const props = entity.properties;
+    
+    if (props && Cesium.defined(props.satName)) {
+      const name = props.satName.getValue();
+      tooltipName.textContent = name;
+      tooltip.style.left = movement.endPosition.x + "px";
+      tooltip.style.top = (movement.endPosition.y - 36) + "px";
+      tooltip.style.transform = "translateX(-50%)";
+      tooltip.classList.add("visible");
+      
+      // Enlarge dot on hover
+      if (hoveredEntity !== entity) {
+        if (hoveredEntity) {
+          hoveredEntity.point.pixelSize = 5;
+          hoveredEntity.point.color = Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)");
+        }
+        entity.point.pixelSize = 10;
+        entity.point.color = Cesium.Color.fromCssColorString("rgba(26,22,16,1.0)");
+        hoveredEntity = entity;
+      }
+      
+      viewer.scene.canvas.style.cursor = "crosshair";
+      return;
+    }
+  }
+  
+  tooltip.classList.remove("visible");
+  if (hoveredEntity) {
+    hoveredEntity.point.pixelSize = 5;
+    hoveredEntity.point.color = Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)");
+    hoveredEntity = null;
+  }
+  viewer.scene.canvas.style.cursor = "default";
+  
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+// ─── CLICK HANDLER ───────────────────────────────────────────────────────────
+handler.setInputAction((click) => {
+  const pickedObject = scene.pick(click.position);
+  
+  if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+    const entity = pickedObject.id;
+    const props = entity.properties;
+    
+    if (props && Cesium.defined(props.satName)) {
+      const satIdx = props.satIdx.getValue();
+      const sat = currentSatellites[satIdx];
+      
+      // Hide daily card
+      document.getElementById("daily-card").classList.remove("visible");
+      
+      // Fly to satellite
+      flyToSatellite(sat);
+      return;
+    }
+  }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+// ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
+function flyToSatellite(sat) {
+  const now = new Date();
+  const pos = propagateSatellite(sat.l1, sat.l2, now);
+  if (!pos) return;
+
+  const altitude = pos.alt;
+  const cameraHeight = altitude + 800000; // 800km above satellite
+
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, cameraHeight),
+    orientation: {
+      heading: Cesium.Math.toRadians(0),
+      pitch: Cesium.Math.toRadians(-90), // straight down
+      roll: 0,
+    },
+    duration: 2.5,
+    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+  });
+}
+
+// ─── GLOBE AUTO-ROTATE ────────────────────────────────────────────────────────
+let autoRotate = true;
+let lastTime = Date.now();
+
+scene.postRender.addEventListener(() => {
+  if (!autoRotate) return;
+  const now = Date.now();
+  const delta = (now - lastTime) / 1000;
+  lastTime = now;
+  viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.015 * delta);
+});
+
+// Stop auto-rotate on user interaction
+viewer.scene.canvas.addEventListener("mousedown", () => { autoRotate = false; });
+viewer.scene.canvas.addEventListener("touchstart", () => { autoRotate = false; });
+
+// ─── DAILY CARD ───────────────────────────────────────────────────────────────
+let currentSatellites = [];
+
+function initDailyCard(satellites) {
+  const { satellite: daily, issueNum } = getDailySatellite(satellites);
+  
+  document.getElementById("daily-card-issue").textContent = `Issue No. ${issueNum} — Daily Satellite`;
+  document.getElementById("daily-card-name").textContent = daily.name;
+  document.getElementById("daily-card-desc").textContent = daily.desc;
+  
+  document.getElementById("daily-card").addEventListener("click", () => {
+    document.getElementById("daily-card").classList.remove("visible");
+    flyToSatellite(daily);
+  });
+  
+  // Show card after 3.5s breath
+  setTimeout(() => {
+    document.getElementById("daily-card").classList.add("visible");
+  }, 3500);
+}
+
+// ─── BOOT SEQUENCE ────────────────────────────────────────────────────────────
+const season = getCurrentSeason();
+document.getElementById("season-indicator").textContent = `${season.name} — ${season.theme}`;
+document.getElementById("season-label").textContent = season.theme;
+
+currentSatellites = getSeasonSatellites(season.key);
+document.getElementById("sat-count").textContent = `${currentSatellites.length} objects tracked`;
+
+// Draw orbits
+drawOrbitsAndDots(currentSatellites);
+
+// Update positions every 10s
+setInterval(updateSatPositions, 10000);
+
+// Clock
+updateClock();
+setInterval(updateClock, 1000);
+
+// Reveal UI after Cesium loads
+setTimeout(() => {
+  document.getElementById("masthead").classList.add("visible");
+  document.getElementById("season-indicator").classList.add("visible");
+  document.getElementById("sat-count").classList.add("visible");
+  initDailyCard(currentSatellites);
+}, 1200);
+
+</script>
+</body>
+</html>
