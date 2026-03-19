@@ -657,12 +657,40 @@ function flyToSatellite(sat) {
   });
 }
 
+// ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
+let trackedSat = null;
+
+function flyToSatellite(sat) {
+  const found = satDots.find(d => d.sat.id === sat.id);
+  if (!found) return;
+
+  autoRotate = false;
+  viewer.trackedEntity = undefined;
+
+  const pos = propagateSatellite(sat.l1, sat.l2, new Date());
+  if (!pos) return;
+
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + 1500000),
+    orientation: {
+      heading: Cesium.Math.toRadians(0),
+      pitch: Cesium.Math.toRadians(-90),
+      roll: 0,
+    },
+    duration: 2.5,
+    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+    complete: () => {
+      viewer.trackedEntity = found.entity;
+    }
+  });
+}
+
 // ─── GLOBE AUTO-ROTATE ───────────────────────────────────────────────────────
 let autoRotate = true;
 let lastTime = Date.now();
 
 scene.postRender.addEventListener(() => {
-  if (!autoRotate) return;
+  if (!autoRotate || viewer.trackedEntity) return;
   const now = Date.now();
   const delta = (now - lastTime) / 1000;
   lastTime = now;
