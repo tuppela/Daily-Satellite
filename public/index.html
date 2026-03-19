@@ -296,23 +296,26 @@
 <script>
 // ─── SATELLITE CATALOGUE — real NORAD IDs, TLEs fetched live ─────────────────
 const SATELLITE_CATALOGUE = [
-  { id: "iss",          name: "ISS",                    norad: 25544, season: "all",    desc: "The International Space Station. 400km above, always occupied since 2000." },
-  { id: "tiangong",     name: "Tiangong CSS",            norad: 48274, season: "all",    desc: "China's national space station. A new permanence in orbit." },
-  { id: "hubble",       name: "Hubble Space Telescope",  norad: 20580, season: "autumn", desc: "Launched blind. Given sight by astronauts. Changed everything." },
-  { id: "goes-16",      name: "GOES-16",                 norad: 41866, season: "summer", desc: "Geostationary. Watches the Western hemisphere. Images a hurricane every 30 seconds." },
-  { id: "noaa-19",      name: "NOAA-19",                 norad: 33591, season: "summer", desc: "Fell 1.5 metres onto a factory floor during assembly. Nobody had installed the bolts." },
-  { id: "terra",        name: "Terra",                   norad: 25994, season: "autumn", desc: "NASA's flagship Earth observer. Watching the planet change since 1999." },
-  { id: "aqua",         name: "Aqua",                    norad: 27424, season: "autumn", desc: "Studying Earth's water cycle. Every ocean, every cloud." },
-  { id: "sentinel-2a",  name: "Sentinel-2A",             norad: 40697, season: "autumn", desc: "ESA's land monitor. Free imagery for the entire planet, every five days." },
-  { id: "landsat-8",    name: "Landsat 8",               norad: 39084, season: "autumn", desc: "Fifty years of continuous Earth observation. The longest environmental record from space." },
-  { id: "cryosat-2",    name: "CryoSat-2",               norad: 36508, season: "autumn", desc: "Measuring ice loss with centimetre precision. The numbers are not reassuring." },
-  { id: "swarm-a",      name: "Swarm-A",                 norad: 39452, season: "autumn", desc: "Mapping Earth's magnetic field. The invisible architecture that makes life possible." },
-  { id: "lageos-1",     name: "LAGEOS-1",                norad: 8820,  season: "winter", desc: "A brass ball covered in mirrors. No electronics. Carries a map of Earth 8 million years from now." },
-  { id: "vanguard-1",   name: "Vanguard 1",              norad: 5,     season: "winter", desc: "The oldest human-made object still in orbit. Launched 1958. Will remain for 600 more years." },
-  { id: "oscar-7",      name: "OSCAR-7",                 norad: 7530,  season: "winter", desc: "Amateur radio satellite. Died 1981. Came back to life in 2002. Used daily ever since." },
-  { id: "starlink-1007",name: "Starlink-1007",           norad: 44713, season: "all",    desc: "One of thousands. The constellation that changed what the night sky looks like." },
-  { id: "jason-3",      name: "Jason-3",                 norad: 41240, season: "autumn", desc: "Measuring sea surface height with millimetre precision. The oceans are rising." },
-  { id: "lacrosse-5",   name: "USA-182",                 norad: 28646, season: "spring", desc: "Radar imaging. Sees through cloud and darkness. Officially unacknowledged." },
+  { id: "iss",          name: "ISS",                    norad: 25544, desc: "The International Space Station. 400km above, always occupied since 2000." },
+  { id: "tiangong",     name: "Tiangong CSS",            norad: 48274, desc: "China's national space station. A new permanence in orbit." },
+  { id: "hubble",       name: "Hubble Space Telescope",  norad: 20580, desc: "Launched blind. Given sight by astronauts. Changed everything." },
+  { id: "goes-16",      name: "GOES-16",                 norad: 41866, desc: "Geostationary. Watches the Western hemisphere. Images a hurricane every 30 seconds." },
+  { id: "noaa-19",      name: "NOAA-19",                 norad: 33591, desc: "Fell 1.5 metres onto a factory floor during assembly. Nobody had installed the bolts." },
+  { id: "terra",        name: "Terra",                   norad: 25994, desc: "NASA's flagship Earth observer. Watching the planet change since 1999." },
+  { id: "aqua",         name: "Aqua",                    norad: 27424, desc: "Studying Earth's water cycle. Every ocean, every cloud." },
+  { id: "sentinel-2a",  name: "Sentinel-2A",             norad: 40697, desc: "ESA's land monitor. Free imagery for the entire planet, every five days." },
+  { id: "landsat-8",    name: "Landsat 8",               norad: 39084, desc: "Fifty years of continuous Earth observation. The longest environmental record from space." },
+  { id: "cryosat-2",    name: "CryoSat-2",               norad: 36508, desc: "Measuring ice loss with centimetre precision. The numbers are not reassuring." },
+  { id: "swarm-a",      name: "Swarm-A",                 norad: 39452, desc: "Mapping Earth's magnetic field. The invisible architecture that makes life possible." },
+  { id: "lageos-1",     name: "LAGEOS-1",                norad: 8820,  desc: "A brass ball covered in mirrors. No electronics. Carries a map of Earth 8 million years from now." },
+  { id: "vanguard-1",   name: "Vanguard 1",              norad: 5,     desc: "The oldest human-made object still in orbit. Launched 1958. Will remain for 600 more years." },
+  { id: "oscar-7",      name: "OSCAR-7",                 norad: 7530,  desc: "Amateur radio satellite. Died 1981. Came back to life in 2002. Used daily ever since." },
+  { id: "jason-3",      name: "Jason-3",                 norad: 41240, desc: "Measuring sea surface height with millimetre precision. The oceans are rising." },
+  { id: "starlink-30",  name: "Starlink-30",             norad: 44238, desc: "One of thousands. The constellation that changed what the night sky looks like." },
+  { id: "starlink-31",  name: "Starlink-31",             norad: 44239, desc: "One of thousands. Astronomers are still deciding how they feel about this." },
+  { id: "gps-63",       name: "GPS BIIR-2",              norad: 24876, desc: "One node in the constellation that tells the world where it is." },
+  { id: "galileo-5",    name: "Galileo-5",               norad: 37846, desc: "Europe's answer to GPS. A political act dressed as infrastructure." },
+  { id: "envisat",      name: "Envisat",                 norad: 27386, desc: "ESA's largest Earth observation satellite. Went silent in 2012. Still orbiting." },
 ];
 
 // Active satellite list — populated after TLE fetch
@@ -680,13 +683,7 @@ function flyToSatellite(sat) {
     duration: 2.5,
     easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     complete: () => {
-      // Lock camera to entity — Earth rolls underneath
       viewer.trackedEntity = found.entity;
-      // Set camera to look straight down from above the satellite
-      viewer.scene.camera.lookAtTransform(
-        Cesium.Matrix4.IDENTITY,
-        new Cesium.Cartesian3(0, 0, 1500000)
-      );
     }
   });
 }
