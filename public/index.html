@@ -683,6 +683,13 @@ const viewer = new Cesium.Viewer("cesium-container", {
   requestRenderMode: false,
 });
 
+// Force resize on window load
+window.addEventListener("resize", () => viewer.resize());
+window.addEventListener("load", () => {
+  viewer.resize();
+  viewer.scene.requestRender();
+});
+
 // Scene settings
 const scene = viewer.scene;
 const globe = scene.globe;
@@ -971,6 +978,10 @@ setInterval(updateClock, 1000);
 
 // Reveal UI after Cesium loads
 setTimeout(() => {
+  // Force Cesium to recalculate canvas size
+  viewer.resize();
+  viewer.scene.requestRender();
+  
   document.getElementById("masthead").classList.add("visible");
   document.getElementById("season-indicator").classList.add("visible");
   document.getElementById("sat-count").classList.add("visible");
