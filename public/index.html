@@ -637,6 +637,8 @@ handler.setInputAction((click) => {
 
 // ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
 let trackedSat = null;
+let autoRotate = true;
+let lastTime = Date.now();
 
 function flyToSatellite(sat) {
   const found = satDots.find(d => d.sat.id === sat.id);
@@ -664,9 +666,6 @@ function flyToSatellite(sat) {
 }
 
 // ─── GLOBE AUTO-ROTATE ───────────────────────────────────────────────────────
-let autoRotate = true;
-let lastTime = Date.now();
-
 scene.postRender.addEventListener(() => {
   if (!autoRotate || viewer.trackedEntity) return;
   const now = Date.now();
