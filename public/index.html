@@ -751,9 +751,7 @@ document.getElementById("season-indicator").classList.add("visible");
 
 // Fetch live TLEs then boot
 (async () => {
-  const seasonCatalogue = SATELLITE_CATALOGUE.filter(
-    s => s.season === season.key || s.season === "all"
-  );
+  const seasonCatalogue = SATELLITE_CATALOGUE; // Show all satellites always
 
   document.getElementById("sat-count").textContent = `Fetching orbital data…`;
   SATELLITES = await fetchLiveTLEs(seasonCatalogue);
