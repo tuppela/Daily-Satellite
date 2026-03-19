@@ -375,7 +375,7 @@ cesiumContainer.style.width = window.innerWidth + "px";
 cesiumContainer.style.height = window.innerHeight + "px";
 
 const viewer = new Cesium.Viewer("cesium-container", {
-  imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
+  imageryProvider: new Cesium.IonImageryProvider({ assetId: 3954 }),
   terrainProvider: new Cesium.EllipsoidTerrainProvider(),
   animation: false,
   baseLayerPicker: false,
@@ -399,9 +399,8 @@ const viewer = new Cesium.Viewer("cesium-container", {
 const scene = viewer.scene;
 const globe = scene.globe;
 
-globe.enableLighting = true;
-globe.atmosphereLightIntensity = 15.0;
-globe.showGroundAtmosphere = true;
+globe.enableLighting = false;
+globe.showGroundAtmosphere = false;
 scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
 scene.moon = undefined;
 
