@@ -777,11 +777,17 @@ function drawOrbitsAndDots(satellites) {
   satellites.forEach((sat, idx) => {
     const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
 
-    // ── Satellite dot: real-time position only ──
+    // ── Satellite dot: real-time ECEF position ──
     const dotPosition = new Cesium.CallbackProperty(() => {
-      const pos = propagateSatellite(sat.l1, sat.l2, new Date());
-      if (!pos) return Cesium.Cartesian3.fromDegrees(0, 0, 500000);
-      return Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt);
+      const satrec2 = satellite.twoline2satrec(sat.l1, sat.l2);
+      const posVel = satellite.propagate(satrec2, new Date());
+      if (!posVel.position) return new Cesium.Cartesian3(0, 0, 6800000);
+      const gmst = satellite.gstime(new Date());
+      const cosG = Math.cos(gmst), sinG = Math.sin(gmst);
+      const x = posVel.position.x * cosG + posVel.position.y * sinG;
+      const y = -posVel.position.x * sinG + posVel.position.y * cosG;
+      const z = posVel.position.z;
+      return new Cesium.Cartesian3(x * 1000, y * 1000, z * 1000);
     }, false);
 
     const dotEntity = viewer.entities.add({
@@ -804,9 +810,25 @@ function drawOrbitsAndDots(satellites) {
   });
 }
 
+// Get satellite position as ECEF Cartesian3 directly
+function getSatCartesian(tle1, tle2, date) {
+  try {
+    const satrec = satellite.twoline2satrec(tle1, tle2);
+    const posVel = satellite.propagate(satrec, date);
+    if (!posVel.position) return null;
+    const gmst = satellite.gstime(date);
+    // Rotate ECI to ECEF directly
+    const cosG = Math.cos(gmst), sinG = Math.sin(gmst);
+    const x = posVel.position.x * cosG + posVel.position.y * sinG;
+    const y = -posVel.position.x * sinG + posVel.position.y * cosG;
+    const z = posVel.position.z;
+    // satellite.js gives km, Cesium needs metres
+    return new Cesium.Cartesian3(x * 1000, y * 1000, z * 1000);
+  } catch(e) { return null; }
+}
+
 // Draw a fading trail behind the selected satellite
 function drawSelectedOrbit(sat) {
-  // Remove all previous trail entities
   viewer.entities.values
     .filter(e => e._orbitRing)
     .forEach(e => viewer.entities.remove(e));
@@ -814,37 +836,25 @@ function drawSelectedOrbit(sat) {
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
   const periodMinutes = 1440 / satrec.no;
-  const trailMs = (periodMinutes / 4) * 60 * 1000; // 90 degrees = 1/4 period
-  const steps = 120;
+  const trailMs = (periodMinutes / 4) * 60 * 1000;
+  const steps = 180;
   const segmentCount = 6;
 
   for (let s = 0; s < segmentCount; s++) {
     const segStart = s / segmentCount;
     const segEnd = (s + 1) / segmentCount;
-    const opacity = ((s + 1) / segmentCount) * 0.6;
+    const opacity = ((s + 1) / segmentCount) * 0.65;
 
     const segPositions = new Cesium.CallbackProperty(() => {
       const now = new Date();
       const startStep = Math.floor(segStart * steps);
       const endStep = Math.floor(segEnd * steps);
-
-      // Collect raw positions
-      const raw = [];
+      const pts = [];
       for (let i = startStep; i <= endStep; i++) {
-        // i=steps is now (head), i=0 is oldest (tail)
+        // i=0 is tail (oldest), i=steps is head (current)
         const t = new Date(now.getTime() - ((steps - i) / steps) * trailMs);
-        const pos = propagateSatellite(sat.l1, sat.l2, t);
-        if (pos) raw.push(pos);
-      }
-
-      if (raw.length < 2) return [];
-
-      // Break at antimeridian crossings — return only first continuous segment
-      const pts = [Cesium.Cartesian3.fromDegrees(raw[0].lon, raw[0].lat, raw[0].alt)];
-      for (let i = 1; i < raw.length; i++) {
-        const dLon = Math.abs(raw[i].lon - raw[i-1].lon);
-        if (dLon > 180) break; // antimeridian crossing — stop here
-        pts.push(Cesium.Cartesian3.fromDegrees(raw[i].lon, raw[i].lat, raw[i].alt));
+        const c = getSatCartesian(sat.l1, sat.l2, t);
+        if (c) pts.push(c);
       }
       return pts;
     }, false);
