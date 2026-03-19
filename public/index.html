@@ -659,19 +659,22 @@ handler.setInputAction((click) => {
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 // ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
+let trackingInterval = null;
+
 function flyToSatellite(sat) {
   const found = satDots.find(d => d.sat.id === sat.id);
   if (!found) return;
 
   autoRotate = false;
-
-  // Clear any existing tracked entity first
   viewer.trackedEntity = undefined;
+
+  // Clear any existing tracking
+  if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
 
   const pos = propagateSatellite(sat.l1, sat.l2, new Date());
   if (!pos) return;
 
-  const cameraHeight = pos.alt + 1500000;
+  const cameraHeight = pos.alt + 1200000;
 
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, cameraHeight),
@@ -683,7 +686,20 @@ function flyToSatellite(sat) {
     duration: 2.5,
     easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     complete: () => {
-      viewer.trackedEntity = found.entity;
+      // After arrival, track satellite by updating camera position every 2s
+      trackingInterval = setInterval(() => {
+        const p = propagateSatellite(sat.l1, sat.l2, new Date());
+        if (!p) return;
+        const height = p.alt + 1200000;
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, height),
+          orientation: {
+            heading: Cesium.Math.toRadians(0),
+            pitch: Cesium.Math.toRadians(-90),
+            roll: 0,
+          }
+        });
+      }, 2000);
     }
   });
 }
@@ -704,9 +720,11 @@ scene.postRender.addEventListener(() => {
 // Stop auto-rotate on user interaction, resume on globe view
 viewer.scene.canvas.addEventListener("mousedown", () => {
   if (!viewer.trackedEntity) autoRotate = false;
+  if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
 });
 viewer.scene.canvas.addEventListener("touchstart", () => {
   if (!viewer.trackedEntity) autoRotate = false;
+  if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
 });
 
 // ─── DAILY CARD ───────────────────────────────────────────────────────────────
