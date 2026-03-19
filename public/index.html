@@ -37,13 +37,30 @@
 
     /* Cesium container */
     #cesium-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: var(--bg);
-}
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+    }
+
+    /* Force cesium canvas to fill container */
+    #cesium-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget,
+    .cesium-widget canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
 
     /* Hide ALL Cesium UI chrome */
     .cesium-widget-credits,
@@ -662,8 +679,13 @@ function updateClock() {
 // ─── CESIUM INIT ─────────────────────────────────────────────────────────────
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1Mjg4OTBhZi02ZGIyLTQyODctYmFjNi0zOGU5NDYyMWEyMTAiLCJpZCI6NDA1ODA1LCJpYXQiOjE3NzM4Njc3MTF9.CFdFGvkYFZms0KCnD6hvlF6f1QHyQ8MiefrOWe49dzk";
 
+// Ensure container fills screen before Cesium init
+const cesiumContainer = document.getElementById("cesium-container");
+cesiumContainer.style.width = window.innerWidth + "px";
+cesiumContainer.style.height = window.innerHeight + "px";
+
 const viewer = new Cesium.Viewer("cesium-container", {
-  imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
+  imageryProvider: new Cesium.IonImageryProvider({ assetId: 3845 }),
   terrainProvider: new Cesium.EllipsoidTerrainProvider(),
   animation: false,
   baseLayerPicker: false,
@@ -681,13 +703,6 @@ const viewer = new Cesium.Viewer("cesium-container", {
   skyAtmosphere: false,
   scene3DOnly: true,
   requestRenderMode: false,
-});
-
-// Force resize on window load
-window.addEventListener("resize", () => viewer.resize());
-window.addEventListener("load", () => {
-  viewer.resize();
-  viewer.scene.requestRender();
 });
 
 // Scene settings
@@ -978,10 +993,6 @@ setInterval(updateClock, 1000);
 
 // Reveal UI after Cesium loads
 setTimeout(() => {
-  // Force Cesium to recalculate canvas size
-  viewer.resize();
-  viewer.scene.requestRender();
-  
   document.getElementById("masthead").classList.add("visible");
   document.getElementById("season-indicator").classList.add("visible");
   document.getElementById("sat-count").classList.add("visible");
