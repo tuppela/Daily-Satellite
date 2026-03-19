@@ -763,12 +763,11 @@ function drawOrbitsAndDots(satellites) {
     const periodMinutes = 1440 / satrec.no;
     const periodMs = periodMinutes * 60 * 1000;
 
-    // ── Orbit trail: 720 points over one full period ──
-    // Use CallbackProperty so trail rotates with Earth in real time
+    // ── Orbit trail: dense points over one full period ──
     const orbitPositions = new Cesium.CallbackProperty(() => {
       const now = new Date();
       const pts = [];
-      const steps = 720;
+      const steps = 1440; // one point per minute of orbital period
       for (let i = 0; i <= steps; i++) {
         const t = new Date(now.getTime() - (i / steps) * periodMs);
         const pos = propagateSatellite(sat.l1, sat.l2, t);
@@ -966,37 +965,21 @@ document.getElementById("sat-count").textContent = `${currentSatellites.length} 
 updateClock();
 setInterval(updateClock, 1000);
 
-// Wait for globe tiles to load, then show everything
-let booted = false;
-function boot() {
-  if (booted) return;
-  booted = true;
+// Draw orbits immediately
+drawOrbitsAndDots(currentSatellites);
+setInterval(updateSatPositions, 10000);
 
-  // Force correct size
-  viewer.resize();
+// Force Cesium to fill the container right away
+viewer.resize();
+viewer.scene.requestRender();
 
-  // Draw orbits and dots
-  drawOrbitsAndDots(currentSatellites);
+// Show UI immediately
+document.getElementById("masthead").classList.add("visible");
+document.getElementById("season-indicator").classList.add("visible");
+document.getElementById("sat-count").classList.add("visible");
 
-  // Update positions every 10s
-  setInterval(updateSatPositions, 10000);
-
-  // Reveal UI
-  document.getElementById("masthead").classList.add("visible");
-  document.getElementById("season-indicator").classList.add("visible");
-  document.getElementById("sat-count").classList.add("visible");
-
-  // Daily card after a breath
-  setTimeout(() => initDailyCard(currentSatellites), 3000);
-}
-
-// Boot when globe is ready — listen for first tile load
-viewer.scene.globe.tileLoadProgressEvent.addEventListener((remaining) => {
-  if (remaining === 0) boot();
-});
-
-// Fallback — boot after 4s regardless
-setTimeout(boot, 4000);
+// Daily card after a breath
+setTimeout(() => initDailyCard(currentSatellites), 3500);
 
 </script>
 </body>
