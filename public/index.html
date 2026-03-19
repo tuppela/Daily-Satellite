@@ -771,38 +771,13 @@ function propagateSatellite(tle1, tle2, date) {
 
 // Draw all orbit hairlines
 const satDots = [];
+let selectedOrbitEntity = null;
 
 function drawOrbitsAndDots(satellites) {
   satellites.forEach((sat, idx) => {
     const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
-    const periodMinutes = 1440 / satrec.no;
-    const periodMs = periodMinutes * 60 * 1000;
 
-    // ── Orbit trail: dense points over one full period ──
-    const orbitPositions = new Cesium.CallbackProperty(() => {
-      const now = new Date();
-      const pts = [];
-      const steps = 1440; // one point per minute of orbital period
-      for (let i = 0; i <= steps; i++) {
-        const t = new Date(now.getTime() - (i / steps) * periodMs);
-        const pos = propagateSatellite(sat.l1, sat.l2, t);
-        if (pos) pts.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
-      }
-      return pts;
-    }, false);
-
-    viewer.entities.add({
-      polyline: {
-        positions: orbitPositions,
-        width: 0.6,
-        arcType: Cesium.ArcType.NONE,
-        material: new Cesium.ColorMaterialProperty(
-          new Cesium.Color(0.1, 0.087, 0.063, 0.2)
-        ),
-      }
-    });
-
-    // ── Satellite dot: real-time position ──
+    // ── Satellite dot: real-time position only ──
     const dotPosition = new Cesium.CallbackProperty(() => {
       const pos = propagateSatellite(sat.l1, sat.l2, new Date());
       if (!pos) return Cesium.Cartesian3.fromDegrees(0, 0, 500000);
@@ -826,6 +801,40 @@ function drawOrbitsAndDots(satellites) {
       },
     });
     satDots.push({ entity: dotEntity, sat, idx });
+  });
+}
+
+// Draw a clean orbital ring for the selected satellite
+function drawSelectedOrbit(sat) {
+  // Remove previous orbit ring
+  if (selectedOrbitEntity) {
+    viewer.entities.remove(selectedOrbitEntity);
+    selectedOrbitEntity = null;
+  }
+
+  const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
+  const periodMinutes = 1440 / satrec.no;
+  const periodMs = periodMinutes * 60 * 1000;
+  const now = new Date();
+
+  // Sample one full orbit at high density
+  const pts = [];
+  const steps = 720;
+  for (let i = 0; i <= steps; i++) {
+    const t = new Date(now.getTime() - (i / steps) * periodMs);
+    const pos = propagateSatellite(sat.l1, sat.l2, t);
+    if (pos) pts.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
+  }
+
+  selectedOrbitEntity = viewer.entities.add({
+    polyline: {
+      positions: pts,
+      width: 1.0,
+      arcType: Cesium.ArcType.NONE,
+      material: new Cesium.ColorMaterialProperty(
+        new Cesium.Color(0.1, 0.087, 0.063, 0.5)
+      ),
+    }
   });
 }
 
@@ -895,7 +904,10 @@ handler.setInputAction((click) => {
       
       // Hide daily card
       document.getElementById("daily-card").classList.remove("visible");
-      
+
+      // Draw orbit ring for this satellite
+      drawSelectedOrbit(sat);
+
       // Fly to satellite
       flyToSatellite(sat);
       return;
@@ -959,6 +971,7 @@ function initDailyCard(satellites) {
   
   document.getElementById("daily-card").addEventListener("click", () => {
     document.getElementById("daily-card").classList.remove("visible");
+    drawSelectedOrbit(daily);
     flyToSatellite(daily);
   });
   
