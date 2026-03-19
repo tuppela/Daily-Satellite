@@ -318,26 +318,33 @@ const SATELLITE_CATALOGUE = [
 // Active satellite list — populated after TLE fetch
 let SATELLITES = [];
 
-// ─── LIVE TLE FETCH via server batch proxy ───────────────────────────────────
+// ─── LIVE TLE FETCH ───────────────────────────────────────────────────────────
 async function fetchLiveTLEs(catalogue) {
-  const noradIds = catalogue.map(s => s.norad).join(",");
-  try {
-    const res = await fetch(`/api/tle/batch?ids=${noradIds}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const tleMap = await res.json();
-    console.log(`Batch TLE returned ${Object.keys(tleMap).length} satellites`);
-
-    return catalogue
-      .map(sat => {
-        const tle = tleMap[sat.norad];
-        if (!tle) { console.warn(`No TLE for ${sat.name} (${sat.norad})`); return null; }
-        return { ...sat, l1: tle.l1, l2: tle.l2 };
-      })
-      .filter(Boolean);
-  } catch(e) {
-    console.error("Batch TLE fetch failed:", e);
-    return [];
+  // Fetch in small parallel batches to avoid overwhelming the server
+  const results = [];
+  const batchSize = 3;
+  for (let i = 0; i < catalogue.length; i += batchSize) {
+    const batch = catalogue.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(async sat => {
+      try {
+        const res = await fetch(`/api/tle/${sat.norad}`);
+        if (!res.ok) { console.warn(`TLE ${sat.name}: HTTP ${res.status}`); return null; }
+        const data = await res.json();
+        if (data.l1 && data.l2) return { ...sat, l1: data.l1, l2: data.l2 };
+        return null;
+      } catch(e) {
+        console.warn(`TLE failed: ${sat.name}`, e.message);
+        return null;
+      }
+    }));
+    results.push(...batchResults.filter(Boolean));
+    // Small pause between batches
+    if (i + batchSize < catalogue.length) {
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
+  console.log(`Loaded ${results.length}/${catalogue.length} TLEs`);
+  return results;
 }
 // ─── SEASON LOGIC ────────────────────────────────────────────────────────────
 function getCurrentSeason() {
