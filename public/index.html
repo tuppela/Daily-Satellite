@@ -368,6 +368,9 @@ function getDailySatellite(satellites) {
   const today = new Date();
   const daysSinceLaunch = Math.floor((today - LAUNCH_DATE) / (1000 * 60 * 60 * 24));
   const issueNum = Math.max(1, daysSinceLaunch + 1);
+  // Always start with ISS for now so the movement is dramatic on first load
+  const iss = satellites.find(s => s.id === "iss");
+  if (iss) return { satellite: iss, issueNum };
   const idx = daysSinceLaunch % satellites.length;
   return { satellite: satellites[Math.abs(idx)], issueNum };
 }
@@ -651,7 +654,7 @@ function flyToSatellite(sat) {
   if (!pos) return;
 
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + 1500000),
+    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + 400000),
     orientation: {
       heading: Cesium.Math.toRadians(0),
       pitch: Cesium.Math.toRadians(-90),
