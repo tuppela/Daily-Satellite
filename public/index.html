@@ -675,6 +675,11 @@ function flyToSatellite(sat) {
     complete: () => {
       // Lock camera to entity — Earth rolls underneath
       viewer.trackedEntity = found.entity;
+      // Set camera to look straight down from above the satellite
+      viewer.scene.camera.lookAtTransform(
+        Cesium.Matrix4.IDENTITY,
+        new Cesium.Cartesian3(0, 0, 1500000)
+      );
     }
   });
 }
@@ -684,16 +689,21 @@ let autoRotate = true;
 let lastTime = Date.now();
 
 scene.postRender.addEventListener(() => {
-  if (!autoRotate) return;
+  // Don't auto-rotate if tracking a satellite — trackedEntity handles camera
+  if (!autoRotate || viewer.trackedEntity) return;
   const now = Date.now();
   const delta = (now - lastTime) / 1000;
   lastTime = now;
   viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.015 * delta);
 });
 
-// Stop auto-rotate on user interaction
-viewer.scene.canvas.addEventListener("mousedown", () => { autoRotate = false; });
-viewer.scene.canvas.addEventListener("touchstart", () => { autoRotate = false; });
+// Stop auto-rotate on user interaction, resume on globe view
+viewer.scene.canvas.addEventListener("mousedown", () => {
+  if (!viewer.trackedEntity) autoRotate = false;
+});
+viewer.scene.canvas.addEventListener("touchstart", () => {
+  if (!viewer.trackedEntity) autoRotate = false;
+});
 
 // ─── DAILY CARD ───────────────────────────────────────────────────────────────
 let currentSatellites = [];
