@@ -657,7 +657,8 @@ function flyToSatellite(sat) {
     duration: 2.5,
     easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     complete: () => {
-      trackedSat = sat; // start tracking after arrival
+      trackedSat = sat;
+      isTracking = true;
     }
   });
 }
@@ -665,24 +666,19 @@ function flyToSatellite(sat) {
 // ─── GLOBE AUTO-ROTATE + SATELLITE TRACKING ──────────────────────────────────
 let autoRotate = true;
 let lastTime = Date.now();
+let isTracking = false;
 
 scene.postRender.addEventListener(() => {
   const now = Date.now();
   const delta = (now - lastTime) / 1000;
   lastTime = now;
 
-  if (trackedSat) {
-    // Smoothly follow satellite — update camera position every frame
+  if (isTracking && trackedSat) {
     const p = propagateSatellite(trackedSat.l1, trackedSat.l2, new Date());
     if (p) {
-      const height = p.alt + 1200000;
       viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, height),
-        orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-90),
-          roll: 0,
-        }
+        destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + 1200000),
+        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 }
       });
     }
     return;
@@ -693,12 +689,19 @@ scene.postRender.addEventListener(() => {
   }
 });
 
-// Stop tracking and auto-rotate on user interaction
+// ANY user interaction kills tracking and auto-rotate immediately
 viewer.scene.canvas.addEventListener("mousedown", () => {
+  isTracking = false;
+  trackedSat = null;
+  autoRotate = false;
+});
+viewer.scene.canvas.addEventListener("wheel", () => {
+  isTracking = false;
   trackedSat = null;
   autoRotate = false;
 });
 viewer.scene.canvas.addEventListener("touchstart", () => {
+  isTracking = false;
   trackedSat = null;
   autoRotate = false;
 });
