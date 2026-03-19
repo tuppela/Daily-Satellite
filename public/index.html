@@ -406,9 +406,10 @@ const viewer = new Cesium.Viewer("cesium-container", {
 const scene = viewer.scene;
 const globe = scene.globe;
 
-// Set clock to real time
+// Set clock to real time — required for path entity rendering
 viewer.clock.currentTime = Cesium.JulianDate.now();
-viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK;
+viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
+viewer.clock.multiplier = 1;
 viewer.clock.shouldAnimate = true;
 
 globe.enableLighting = true;
@@ -527,56 +528,58 @@ function getSatCartesian(tle1, tle2, date) {
   } catch(e) { return null; }
 }
 
-// Track trail entities in a dedicated array
+// Track trail entities
 const trailEntities = [];
 
-// Draw a static fading trail for the selected satellite
+// Draw a smooth fading trail using SampledPositionProperty + path
 function drawSelectedOrbit(sat) {
-  // Remove all existing trail entities using our tracked array
+  // Remove all existing trail entities
   while (trailEntities.length > 0) {
-    const e = trailEntities.pop();
-    viewer.entities.remove(e);
+    viewer.entities.remove(trailEntities.pop());
   }
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
   const periodMinutes = 1440 / satrec.no;
-  const trailMs = (periodMinutes / 4) * 60 * 1000;
-  const steps = 200;
+  const trailSeconds = (periodMinutes / 4) * 60; // 90° of orbit in seconds
   const now = new Date();
+  const nowJD = Cesium.JulianDate.fromDate(now);
 
-  // Compute all trail points in ECEF
-  const allPts = [];
+  // Build a SampledPositionProperty with positions over the trail window
+  const sampledPos = new Cesium.SampledPositionProperty();
+  const steps = 40; // enough for Lagrange to interpolate smoothly
+
   for (let i = 0; i <= steps; i++) {
-    const t = new Date(now.getTime() - ((steps - i) / steps) * trailMs);
+    const secsAgo = trailSeconds * (1 - i / steps); // steps ago → now
+    const t = new Date(now.getTime() - secsAgo * 1000);
+    const jd = Cesium.JulianDate.fromDate(t);
     const c = getSatCartesian(sat.l1, sat.l2, t);
-    if (c) allPts.push(c);
+    if (c) sampledPos.addSample(jd, c);
   }
 
-  if (allPts.length < 2) return;
+  sampledPos.setInterpolationOptions({
+    interpolationDegree: 5,
+    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
+  });
 
-  // Draw as 8 segments with increasing opacity tail→head
-  const segCount = 8;
-  const segSize = Math.floor(allPts.length / segCount);
+  // Create entity with a path — Cesium draws the smooth curve
+  const trailStart = Cesium.JulianDate.addSeconds(nowJD, -trailSeconds, new Cesium.JulianDate());
+  const trailEnd = nowJD;
 
-  for (let s = 0; s < segCount; s++) {
-    const start = s * segSize;
-    const end = Math.min((s + 1) * segSize + 1, allPts.length);
-    const pts = allPts.slice(start, end);
-    if (pts.length < 2) continue;
+  const e = viewer.entities.add({
+    position: sampledPos,
+    path: {
+      resolution: 10,
+      leadTime: 0,
+      trailTime: trailSeconds,
+      width: 1.5,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.1,
+        color: new Cesium.Color(0.1, 0.087, 0.063, 0.8),
+      }),
+    },
+  });
 
-    const opacity = ((s + 1) / segCount) * 0.7;
-    const e = viewer.entities.add({
-      polyline: {
-        positions: pts,
-        width: 1.5,
-        arcType: Cesium.ArcType.NONE,
-        material: new Cesium.ColorMaterialProperty(
-          new Cesium.Color(0.1, 0.087, 0.063, opacity)
-        ),
-      }
-    });
-    trailEntities.push(e);
-  }
+  trailEntities.push(e);
 }
 
 // ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
