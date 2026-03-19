@@ -640,15 +640,13 @@ let trackedSat = null;
 
 function flyToSatellite(sat) {
   autoRotate = false;
-  trackedSat = null; // clear tracking while flying
+  trackedSat = sat;
 
   const pos = propagateSatellite(sat.l1, sat.l2, new Date());
   if (!pos) return;
 
-  const cameraHeight = pos.alt + 1200000;
-
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, cameraHeight),
+    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + 1200000),
     orientation: {
       heading: Cesium.Math.toRadians(0),
       pitch: Cesium.Math.toRadians(-90),
@@ -656,55 +654,23 @@ function flyToSatellite(sat) {
     },
     duration: 2.5,
     easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
-    complete: () => {
-      trackedSat = sat;
-      isTracking = true;
-    }
   });
 }
 
-// ─── GLOBE AUTO-ROTATE + SATELLITE TRACKING ──────────────────────────────────
+// ─── GLOBE AUTO-ROTATE ───────────────────────────────────────────────────────
 let autoRotate = true;
 let lastTime = Date.now();
-let isTracking = false;
 
 scene.postRender.addEventListener(() => {
+  if (!autoRotate) return;
   const now = Date.now();
   const delta = (now - lastTime) / 1000;
   lastTime = now;
-
-  if (isTracking && trackedSat) {
-    const p = propagateSatellite(trackedSat.l1, trackedSat.l2, new Date());
-    if (p) {
-      viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt + 1200000),
-        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 }
-      });
-    }
-    return;
-  }
-
-  if (autoRotate) {
-    viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.015 * delta);
-  }
+  viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.015 * delta);
 });
 
-// ANY user interaction kills tracking and auto-rotate immediately
-viewer.scene.canvas.addEventListener("mousedown", () => {
-  isTracking = false;
-  trackedSat = null;
-  autoRotate = false;
-});
-viewer.scene.canvas.addEventListener("wheel", () => {
-  isTracking = false;
-  trackedSat = null;
-  autoRotate = false;
-});
-viewer.scene.canvas.addEventListener("touchstart", () => {
-  isTracking = false;
-  trackedSat = null;
-  autoRotate = false;
-});
+viewer.scene.canvas.addEventListener("mousedown", () => { autoRotate = false; });
+viewer.scene.canvas.addEventListener("touchstart", () => { autoRotate = false; });
 
 // ─── DAILY CARD ───────────────────────────────────────────────────────────────
 let currentSatellites = [];
