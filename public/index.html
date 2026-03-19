@@ -749,90 +749,59 @@ function propagateSatellite(tle1, tle2, date) {
     return {
       lat: satellite.degreesLat(geo.latitude),
       lon: satellite.degreesLong(geo.longitude),
-      alt: geo.height * 1000, // metres
+      alt: geo.height * 1000,
     };
   } catch(e) { return null; }
 }
 
-function buildOrbitPositions(tle1, tle2, steps = 360) {
-  const positions = [];
-  const now = new Date();
-  const satrec = satellite.twoline2satrec(tle1, tle2);
-  const periodMinutes = 1440 / satrec.no;
-  const stepMs = (periodMinutes * 60 * 1000) / steps;
-
-  for (let i = 0; i <= steps; i++) {
-    const t = new Date(now.getTime() - (steps / 2) * stepMs + i * stepMs);
-    const pos = propagateSatellite(tle1, tle2, t);
-    if (pos) {
-      // Use ECI-derived cartesian directly for smooth curves
-      positions.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
-    }
-  }
-  return positions;
-}
-
 // Draw all orbit hairlines
-const orbitEntities = [];
 const satDots = [];
 
 function drawOrbitsAndDots(satellites) {
   satellites.forEach((sat, idx) => {
-    const positions = buildOrbitPositions(sat.l1, sat.l2, 360);
-    if (positions.length < 2) return;
+    const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
+    const periodMinutes = 1440 / satrec.no;
+    const periodMs = periodMinutes * 60 * 1000;
 
-    // Gradient effect — fade middle of orbit
-    const n = positions.length;
-    const colors = positions.map((_, i) => {
-      const t = i / n;
-      // Sine curve: bright at start/end, faint in middle
-      const alpha = 0.08 + 0.22 * Math.pow(Math.sin(t * Math.PI), 0.3);
-      return new Cesium.Color(0.1, 0.087, 0.063, alpha);
-    });
+    // ── Orbit trail: 720 points over one full period ──
+    // Use CallbackProperty so trail rotates with Earth in real time
+    const orbitPositions = new Cesium.CallbackProperty(() => {
+      const now = new Date();
+      const pts = [];
+      const steps = 720;
+      for (let i = 0; i <= steps; i++) {
+        const t = new Date(now.getTime() - (i / steps) * periodMs);
+        const pos = propagateSatellite(sat.l1, sat.l2, t);
+        if (pos) pts.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
+      }
+      return pts;
+    }, false);
 
     viewer.entities.add({
       polyline: {
-        positions: positions,
-        width: 0.7,
-        material: new Cesium.PolylineColorAppearance(),
+        positions: orbitPositions,
+        width: 0.6,
         arcType: Cesium.ArcType.NONE,
-        followSurface: false,
         material: new Cesium.ColorMaterialProperty(
-          new Cesium.Color(0.1, 0.087, 0.063, 0.18)
+          new Cesium.Color(0.1, 0.087, 0.063, 0.2)
         ),
       }
     });
 
-    // Satellite dot — use SampledPositionProperty for smooth real-time tracking
-    const sampledPosition = new Cesium.SampledPositionProperty();
-    const now = new Date();
-    const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
-    const periodMinutes = 1440 / satrec.no;
-    
-    // Sample positions over 2 full orbits for smooth interpolation
-    for (let i = -60; i <= 60; i++) {
-      const t = new Date(now.getTime() + i * (periodMinutes * 60 * 1000 / 60));
-      const pos = propagateSatellite(sat.l1, sat.l2, t);
-      if (pos) {
-        sampledPosition.addSample(
-          Cesium.JulianDate.fromDate(t),
-          Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt)
-        );
-      }
-    }
-    sampledPosition.setInterpolationOptions({
-      interpolationDegree: 5,
-      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
-    });
+    // ── Satellite dot: real-time position ──
+    const dotPosition = new Cesium.CallbackProperty(() => {
+      const pos = propagateSatellite(sat.l1, sat.l2, new Date());
+      if (!pos) return Cesium.Cartesian3.fromDegrees(0, 0, 500000);
+      return Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt);
+    }, false);
 
     const dotEntity = viewer.entities.add({
-      position: sampledPosition,
+      position: dotPosition,
       point: {
         pixelSize: 5,
         color: Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)"),
         outlineColor: Cesium.Color.TRANSPARENT,
         outlineWidth: 0,
-        heightReference: Cesium.HeightReference.NONE,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       properties: {
@@ -847,12 +816,8 @@ function drawOrbitsAndDots(satellites) {
 }
 
 // ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
-// Position updates are handled automatically by SampledPositionProperty
-// We just need to keep Cesium's clock ticking
-function updateSatPositions() {
-  // Advance Cesium clock to now so sampled positions stay current
-  viewer.clock.currentTime = Cesium.JulianDate.now();
-}
+// Positions update automatically via CallbackProperty — nothing needed here
+function updateSatPositions() {}
 
 // ─── HOVER DETECTION ─────────────────────────────────────────────────────────
 const tooltip = document.getElementById("sat-tooltip");
@@ -926,19 +891,15 @@ handler.setInputAction((click) => {
 
 // ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
 function flyToSatellite(sat) {
-  // Find the entity for this satellite
   const found = satDots.find(d => d.sat.id === sat.id);
   if (!found) return;
 
-  // Stop auto-rotate
   autoRotate = false;
 
-  // First fly to the satellite's current position
-  const now = new Date();
-  const pos = propagateSatellite(sat.l1, sat.l2, now);
+  const pos = propagateSatellite(sat.l1, sat.l2, new Date());
   if (!pos) return;
 
-  const cameraHeight = pos.alt + 1200000; // 1200km above satellite
+  const cameraHeight = pos.alt + 1500000;
 
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, cameraHeight),
@@ -950,7 +911,7 @@ function flyToSatellite(sat) {
     duration: 2.5,
     easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     complete: () => {
-      // After arriving, lock camera to entity — Earth rolls underneath
+      // Lock camera to satellite entity
       viewer.trackedEntity = found.entity;
     }
   });
