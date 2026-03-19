@@ -685,7 +685,7 @@ cesiumContainer.style.width = window.innerWidth + "px";
 cesiumContainer.style.height = window.innerHeight + "px";
 
 const viewer = new Cesium.Viewer("cesium-container", {
-  imageryProvider: new Cesium.IonImageryProvider({ assetId: 3845 }),
+  imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
   terrainProvider: new Cesium.EllipsoidTerrainProvider(),
   animation: false,
   baseLayerPicker: false,
@@ -780,9 +780,9 @@ function drawOrbitsAndDots(satellites) {
     // Split into thirds for gradient effect (opaque → transparent → opaque)
     const third = Math.floor(positions.length / 3);
     const segments = [
-      { pts: positions.slice(0, third + 1), opacity: 0.5 },
-      { pts: positions.slice(third, 2 * third + 1), opacity: 0.15 },
-      { pts: positions.slice(2 * third), opacity: 0.5 },
+      { pts: positions.slice(0, third + 1), opacity: 0.25 },
+      { pts: positions.slice(third, 2 * third + 1), opacity: 0.06 },
+      { pts: positions.slice(2 * third), opacity: 0.25 },
     ];
 
     segments.forEach(seg => {
@@ -790,7 +790,7 @@ function drawOrbitsAndDots(satellites) {
       const entity = viewer.entities.add({
         polyline: {
           positions: seg.pts,
-          width: 0.8,
+          width: 0.5,
           material: new Cesium.PolylineOutlineMaterialProperty({
             color: Cesium.Color.fromCssColorString(`rgba(26,22,16,${seg.opacity})`),
             outlineWidth: 0,
@@ -981,23 +981,41 @@ document.getElementById("season-label").textContent = season.theme;
 currentSatellites = getSeasonSatellites(season.key);
 document.getElementById("sat-count").textContent = `${currentSatellites.length} objects tracked`;
 
-// Draw orbits
-drawOrbitsAndDots(currentSatellites);
-
-// Update positions every 10s
-setInterval(updateSatPositions, 10000);
-
 // Clock
 updateClock();
 setInterval(updateClock, 1000);
 
-// Reveal UI after Cesium loads
-setTimeout(() => {
+// Wait for globe tiles to load, then show everything
+let booted = false;
+function boot() {
+  if (booted) return;
+  booted = true;
+
+  // Force correct size
+  viewer.resize();
+
+  // Draw orbits and dots
+  drawOrbitsAndDots(currentSatellites);
+
+  // Update positions every 10s
+  setInterval(updateSatPositions, 10000);
+
+  // Reveal UI
   document.getElementById("masthead").classList.add("visible");
   document.getElementById("season-indicator").classList.add("visible");
   document.getElementById("sat-count").classList.add("visible");
-  initDailyCard(currentSatellites);
-}, 1200);
+
+  // Daily card after a breath
+  setTimeout(() => initDailyCard(currentSatellites), 3000);
+}
+
+// Boot when globe is ready — listen for first tile load
+viewer.scene.globe.tileLoadProgressEvent.addEventListener((remaining) => {
+  if (remaining === 0) boot();
+});
+
+// Fallback — boot after 4s regardless
+setTimeout(boot, 4000);
 
 </script>
 </body>
