@@ -804,52 +804,76 @@ function drawOrbitsAndDots(satellites) {
   });
 }
 
-// Draw a clean orbital ring for the selected satellite
+// Draw a clean geometric orbital ring for the selected satellite
 function drawSelectedOrbit(sat) {
-  if (selectedOrbitEntity) {
-    viewer.entities.remove(selectedOrbitEntity);
-    selectedOrbitEntity = null;
-  }
+  // Remove ALL previous orbit entities
+  viewer.entities.values
+    .filter(e => e._orbitRing)
+    .forEach(e => viewer.entities.remove(e));
+  selectedOrbitEntity = null;
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
-  const periodMinutes = 1440 / satrec.no;
-  const periodMs = periodMinutes * 60 * 1000;
-  const now = new Date();
 
-  // Sample one full orbit in ECI space, convert to fixed frame
-  // Key: use the SAME gmst for all points so orbit stays in inertial frame
-  // This produces a smooth ellipse rather than a zigzag ground track
+  // Extract orbital elements
+  const inclination = satrec.inclo; // radians
+  const raan = satrec.nodeo;        // right ascension of ascending node, radians
+  const ecc = satrec.ecco;          // eccentricity
+  const argPerigee = satrec.argpo;  // argument of perigee, radians
+  const meanMotion = satrec.no;     // rad/min
+  const periodMin = (2 * Math.PI) / meanMotion;
+
+  // Semi-major axis from mean motion (km)
+  const mu = 398600.4418; // Earth's gravitational parameter km³/s²
+  const n = meanMotion / 60; // rad/s
+  const a = Math.pow(mu / (n * n), 1/3); // km
+  const b = a * Math.sqrt(1 - ecc * ecc); // semi-minor axis
+  const earthR = 6371; // km
+
+  // Build ellipse points in orbital plane, then rotate to ECI, then to ECEF
   const pts = [];
-  const steps = 720;
-  const gmst = satellite.gstime(now);
+  const steps = 360;
+
+  // Current GMST for ECI→ECEF rotation
+  const gmst = satellite.gstime(new Date());
 
   for (let i = 0; i <= steps; i++) {
-    const t = new Date(now.getTime() - (i / steps) * periodMs);
-    try {
-      const posVel = satellite.propagate(satrec, t);
-      if (!posVel.position) continue;
-      // Convert ECI position to geodetic using CURRENT gmst (not time-varying)
-      // This freezes the Earth rotation, showing the orbital plane cleanly
-      const geo = satellite.eciToGeodetic(posVel.position, gmst);
-      const lat = satellite.degreesLat(geo.latitude);
-      const lon = satellite.degreesLong(geo.longitude);
-      const alt = geo.height * 1000;
-      pts.push(Cesium.Cartesian3.fromDegrees(lon, lat, alt));
-    } catch(e) {}
+    const nu = (i / steps) * 2 * Math.PI; // true anomaly
+
+    // Position in orbital plane (perifocal frame)
+    const r = (a * (1 - ecc * ecc)) / (1 + ecc * Math.cos(nu));
+    const xPerifocal = r * Math.cos(nu);
+    const yPerifocal = r * Math.sin(nu);
+
+    // Rotate from perifocal to ECI using orbital elements
+    const cosO = Math.cos(raan),   sinO = Math.sin(raan);
+    const cosI = Math.cos(inclination), sinI = Math.sin(inclination);
+    const cosW = Math.cos(argPerigee), sinW = Math.sin(argPerigee);
+
+    const xECI = (cosO*cosW - sinO*sinW*cosI)*xPerifocal + (-cosO*sinW - sinO*cosW*cosI)*yPerifocal;
+    const yECI = (sinO*cosW + cosO*sinW*cosI)*xPerifocal + (-sinO*sinW + cosO*cosW*cosI)*yPerifocal;
+    const zECI = (sinW*sinI)*xPerifocal + (cosW*sinI)*yPerifocal;
+
+    // Rotate ECI to ECEF using GMST
+    const xECEF = xECI * Math.cos(gmst) + yECI * Math.sin(gmst);
+    const yECEF = -xECI * Math.sin(gmst) + yECI * Math.cos(gmst);
+    const zECEF = zECI;
+
+    // Convert ECEF (km) to Cartesian3 (metres)
+    pts.push(new Cesium.Cartesian3(xECEF * 1000, yECEF * 1000, zECEF * 1000));
   }
 
-  if (pts.length < 2) return;
-
-  selectedOrbitEntity = viewer.entities.add({
+  const entity = viewer.entities.add({
     polyline: {
       positions: pts,
-      width: 1.0,
+      width: 1.2,
       arcType: Cesium.ArcType.NONE,
       material: new Cesium.ColorMaterialProperty(
-        new Cesium.Color(0.1, 0.087, 0.063, 0.45)
+        new Cesium.Color(0.1, 0.087, 0.063, 0.5)
       ),
     }
   });
+  entity._orbitRing = true;
+  selectedOrbitEntity = entity;
 }
 
 // ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
