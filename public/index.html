@@ -375,8 +375,7 @@ cesiumContainer.style.width = window.innerWidth + "px";
 cesiumContainer.style.height = window.innerHeight + "px";
 
 const viewer = new Cesium.Viewer("cesium-container", {
-  imageryProvider: new Cesium.IonImageryProvider({ assetId: 3830182 }),
-  terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+  baseLayerPicker: false,
   animation: false,
   baseLayerPicker: false,
   fullscreenButton: false,
@@ -402,6 +401,21 @@ const globe = scene.globe;
 globe.enableLighting = false;
 globe.showGroundAtmosphere = false;
 scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
+
+// Remove default imagery and add Google Maps satellite
+viewer.imageryLayers.removeAll();
+Cesium.IonImageryProvider.fromAssetId(3830182).then(provider => {
+  viewer.imageryLayers.addImageryProvider(provider);
+}).catch(err => {
+  console.error("Imagery load failed:", err);
+  // Fallback to Bing
+  Cesium.IonImageryProvider.fromAssetId(2).then(p => {
+    viewer.imageryLayers.addImageryProvider(p);
+  }).catch(() => {
+    // Last resort — default blue ocean is fine
+    console.warn("All imagery fallbacks failed");
+  });
+});
 scene.moon = undefined;
 
 // Remove stars
