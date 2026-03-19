@@ -6,7 +6,7 @@
   <title>Orbital Register</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.css" rel="stylesheet" />
@@ -261,6 +261,263 @@
     }
     #sat-count.visible { opacity: 0.3; }
 
+    /* ─── INFO PANEL ──────────────────────────────────────────────────────── */
+    :root {
+      --dm: 'DM Mono', 'Courier New', monospace;
+      --panel-bg: rgba(18, 15, 10, 0.85);
+      --panel-border: rgba(240, 235, 224, 0.1);
+      --panel-text: rgba(240, 235, 224, 0.82);
+      --panel-faint: rgba(240, 235, 224, 0.3);
+      --panel-ghost: rgba(240, 235, 224, 0.12);
+    }
+
+    #info-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.96);
+      z-index: 80;
+      width: min(600px, 90vw);
+      max-height: 80vh;
+      background: var(--panel-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    #info-panel.visible {
+      opacity: 1;
+      pointer-events: all;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    #info-panel.collapsed {
+      top: auto;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(400px, 90vw);
+      max-height: none;
+      height: auto;
+    }
+
+    /* Panel header */
+    #panel-header {
+      padding: 28px 32px 20px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--panel-ghost);
+    }
+
+    #panel-sat-type {
+      font-family: var(--dm);
+      font-size: 8px;
+      font-weight: 400;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+      margin-bottom: 10px;
+    }
+
+    #panel-sat-name {
+      font-family: var(--dm);
+      font-size: 20px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      color: rgba(240, 235, 224, 0.95);
+      margin-bottom: 5px;
+      line-height: 1.2;
+    }
+
+    #panel-sat-agency {
+      font-family: var(--dm);
+      font-size: 9px;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+    }
+
+    /* Scrollable body */
+    #panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 32px;
+      position: relative;
+      scrollbar-width: none;
+    }
+    #panel-body::-webkit-scrollbar { display: none; }
+
+    /* Fade top/bottom */
+    #panel-body::before,
+    #panel-body::after {
+      content: '';
+      position: sticky;
+      display: block;
+      left: 0; right: 0;
+      height: 32px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    #panel-body::before {
+      top: 0;
+      background: linear-gradient(to bottom, var(--panel-bg), transparent);
+      margin-bottom: -32px;
+    }
+    #panel-body::after {
+      bottom: 0;
+      background: linear-gradient(to top, var(--panel-bg), transparent);
+      margin-top: -32px;
+    }
+
+    #panel-text-content {
+      padding: 24px 0;
+      columns: 2;
+      column-gap: 24px;
+      font-family: 'IM Fell English', Georgia, serif;
+      font-size: 13.5px;
+      line-height: 1.85;
+      color: var(--panel-text);
+    }
+
+    #panel-text-content p {
+      margin-bottom: 14px;
+      break-inside: avoid;
+    }
+
+    #panel-loading {
+      padding: 40px 0;
+      font-family: var(--dm);
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+      text-align: center;
+      columns: 1;
+    }
+
+    #panel-loading::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+
+    /* Data table */
+    #panel-data {
+      padding: 0 32px 20px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--panel-ghost);
+    }
+
+    .panel-data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 7px 0;
+      border-bottom: 1px dotted var(--panel-ghost);
+    }
+
+    .panel-data-key {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+    }
+
+    .panel-data-val {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      color: rgba(240, 235, 224, 0.65);
+    }
+
+    /* Controls */
+    #panel-controls {
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--panel-ghost);
+    }
+
+    .panel-ctrl {
+      font-family: var(--dm);
+      font-size: 8px;
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .panel-ctrl:hover { color: rgba(240, 235, 224, 0.8); }
+
+    #panel-waveform {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #panel-waveform.active { opacity: 1; }
+    #panel-waveform span {
+      display: block;
+      width: 2px;
+      background: rgba(240, 235, 224, 0.4);
+      border-radius: 1px;
+      animation: panelwave 1.2s ease-in-out infinite;
+    }
+    #panel-waveform span:nth-child(1) { height: 5px; animation-delay: 0s; }
+    #panel-waveform span:nth-child(2) { height: 11px; animation-delay: 0.1s; }
+    #panel-waveform span:nth-child(3) { height: 7px; animation-delay: 0.2s; }
+    #panel-waveform span:nth-child(4) { height: 13px; animation-delay: 0.3s; }
+    #panel-waveform span:nth-child(5) { height: 5px; animation-delay: 0.4s; }
+    #panel-waveform span:nth-child(6) { height: 9px; animation-delay: 0.15s; }
+    #panel-waveform span:nth-child(7) { height: 4px; animation-delay: 0.25s; }
+
+    @keyframes panelwave {
+      0%, 100% { transform: scaleY(1); }
+      50% { transform: scaleY(0.3); }
+    }
+
+    /* Collapsed bar */
+    #info-panel.collapsed #panel-body,
+    #info-panel.collapsed #panel-data,
+    #info-panel.collapsed #panel-header {
+      display: none;
+    }
+
+    #info-panel.collapsed #panel-controls {
+      justify-content: center;
+      padding: 12px 24px;
+    }
+
+    #collapsed-name {
+      font-family: var(--dm);
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      color: rgba(240, 235, 224, 0.6);
+      margin-right: auto;
+    }
+
   </style>
 </head>
 <body>
@@ -292,6 +549,29 @@
 
 <div id="season-indicator"></div>
 <div id="sat-count"></div>
+
+<!-- ─── INFO PANEL ─────────────────────────────────────────────────────── -->
+<div id="info-panel">
+  <div id="panel-header">
+    <div id="panel-sat-type">◆ Loading</div>
+    <div id="panel-sat-name">—</div>
+    <div id="panel-sat-agency"></div>
+  </div>
+  <div id="panel-body">
+    <div id="panel-text-content">
+      <p id="panel-loading">The archivist is searching the files</p>
+    </div>
+  </div>
+  <div id="panel-data"></div>
+  <div id="panel-controls">
+    <span id="collapsed-name"></span>
+    <button class="panel-ctrl" id="ctrl-collapse" onclick="togglePanel()">↙ Collapse</button>
+    <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">✕ Close</button>
+    <div id="panel-waveform">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─── SATELLITE CATALOGUE — real NORAD IDs, TLEs fetched live ─────────────────
@@ -628,10 +908,8 @@ handler.setInputAction((click) => {
       // Hide daily card
       document.getElementById("daily-card").classList.remove("visible");
 
-      // Draw orbit ring for this satellite
-      drawSelectedOrbit(sat);
-
-      // Fly to satellite
+      // Open info panel and fly to satellite simultaneously
+      openPanel(sat);
       flyToSatellite(sat);
       return;
     }
@@ -693,7 +971,7 @@ function initDailyCard(satellites) {
   
   document.getElementById("daily-card").addEventListener("click", () => {
     document.getElementById("daily-card").classList.remove("visible");
-    drawSelectedOrbit(daily);
+    openPanel(daily);
     flyToSatellite(daily);
   });
   
@@ -732,6 +1010,103 @@ document.getElementById("season-indicator").classList.add("visible");
 
   setTimeout(() => initDailyCard(currentSatellites), 3500);
 })();
+
+// ─── INFO PANEL ───────────────────────────────────────────────────────────────
+let panelCollapsed = false;
+let currentPanelSat = null;
+
+const SAT_DETAILS = {
+  "iss":         { type: "Space Station",    agency: "NASA / Roscosmos / ESA / JAXA / CSA", alt: "~408 km", inc: "51.6°", period: "92.9 min", launched: "1998-11-20" },
+  "tiangong":    { type: "Space Station",    agency: "CNSA", alt: "~390 km", inc: "41.5°", period: "92.1 min", launched: "2021-04-29" },
+  "hubble":      { type: "Space Telescope",  agency: "NASA / ESA", alt: "~540 km", inc: "28.5°", period: "95.4 min", launched: "1990-04-24" },
+  "goes-16":     { type: "Weather / GEO",    agency: "NOAA / NASA", alt: "~35,786 km", inc: "0.0°", period: "1436 min", launched: "2016-11-19" },
+  "noaa-19":     { type: "Weather",          agency: "NOAA / NASA", alt: "~870 km", inc: "98.7°", period: "101.4 min", launched: "2009-02-06" },
+  "terra":       { type: "Earth Observation",agency: "NASA", alt: "~705 km", inc: "98.2°", period: "98.9 min", launched: "1999-12-18" },
+  "aqua":        { type: "Earth Observation",agency: "NASA", alt: "~705 km", inc: "98.2°", period: "98.9 min", launched: "2002-05-04" },
+  "sentinel-2a": { type: "Earth Observation",agency: "ESA", alt: "~786 km", inc: "98.6°", period: "100.6 min", launched: "2015-06-23" },
+  "landsat-8":   { type: "Earth Observation",agency: "NASA / USGS", alt: "~705 km", inc: "98.2°", period: "99 min", launched: "2013-02-11" },
+  "cryosat-2":   { type: "Science",          agency: "ESA", alt: "~720 km", inc: "92°", period: "99.2 min", launched: "2010-04-08" },
+  "swarm-a":     { type: "Science",          agency: "ESA", alt: "~460 km", inc: "87.4°", period: "94.2 min", launched: "2013-11-22" },
+  "lageos-1":    { type: "Geodetic",         agency: "NASA", alt: "~5,900 km", inc: "109.8°", period: "225.7 min", launched: "1976-05-04" },
+  "vanguard-1":  { type: "Historical",       agency: "US Navy / NASA", alt: "~650 km", inc: "34.2°", period: "132.7 min", launched: "1958-03-17" },
+  "oscar-7":     { type: "Amateur Radio",    agency: "AMSAT", alt: "~1,460 km", inc: "101.8°", period: "114.9 min", launched: "1974-11-15" },
+  "jason-3":     { type: "Oceanography",     agency: "NOAA / CNES / EUMETSAT / NASA", alt: "~1,336 km", inc: "66°", period: "112.4 min", launched: "2016-01-17" },
+  "starlink-30": { type: "Constellation",    agency: "SpaceX", alt: "~550 km", inc: "53°", period: "95.5 min", launched: "2019" },
+  "starlink-31": { type: "Constellation",    agency: "SpaceX", alt: "~550 km", inc: "53°", period: "95.5 min", launched: "2019" },
+  "gps-63":      { type: "Navigation",       agency: "US Space Force", alt: "~20,200 km", inc: "55°", period: "717 min", launched: "1997-07-23" },
+  "galileo-5":   { type: "Navigation",       agency: "ESA", alt: "~23,222 km", inc: "56°", period: "844 min", launched: "2012-10-12" },
+  "envisat":     { type: "Earth Observation",agency: "ESA", alt: "~790 km", inc: "98.5°", period: "100.6 min", launched: "2002-03-01" },
+};
+
+async function openPanel(sat) {
+  currentPanelSat = sat;
+  panelCollapsed = false;
+
+  const panel = document.getElementById("info-panel");
+  const details = SAT_DETAILS[sat.id] || {};
+
+  // Set header
+  document.getElementById("panel-sat-type").textContent = `◆ ${details.type || "Satellite"}`;
+  document.getElementById("panel-sat-name").textContent = sat.name;
+  document.getElementById("panel-sat-agency").textContent = details.agency || "";
+  document.getElementById("collapsed-name").textContent = sat.name;
+
+  // Set data table
+  const dataEl = document.getElementById("panel-data");
+  const rows = [
+    ["Altitude", details.alt],
+    ["Inclination", details.inc],
+    ["Period", details.period],
+    ["Launched", details.launched],
+  ].filter(([, v]) => v);
+
+  dataEl.innerHTML = rows.map(([k, v]) => `
+    <div class="panel-data-row">
+      <span class="panel-data-key">${k}</span>
+      <span class="panel-data-val">${v}</span>
+    </div>
+  `).join("");
+
+  // Show loading state
+  const textEl = document.getElementById("panel-text-content");
+  textEl.innerHTML = `<p id="panel-loading">The archivist is searching the files</p>`;
+
+  // Show panel
+  panel.classList.remove("collapsed");
+  panel.classList.add("visible");
+
+  // Fetch story from Claude
+  try {
+    const res = await fetch("/api/story", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: sat.id, name: sat.name, desc: sat.desc })
+    });
+    const data = await res.json();
+    if (data.text) {
+      // Split into paragraphs and render
+      const paragraphs = data.text.split(/\n+/).filter(p => p.trim().length > 0);
+      textEl.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join("");
+    } else {
+      textEl.innerHTML = `<p style="font-style:italic;opacity:0.5">${data.error || "The archivist could not be reached."}</p>`;
+    }
+  } catch(e) {
+    textEl.innerHTML = `<p style="font-style:italic;opacity:0.5">The archivist could not be reached.</p>`;
+  }
+}
+
+function togglePanel() {
+  const panel = document.getElementById("info-panel");
+  panelCollapsed = !panelCollapsed;
+  panel.classList.toggle("collapsed", panelCollapsed);
+  document.getElementById("ctrl-collapse").textContent = panelCollapsed ? "↗ Expand" : "↙ Collapse";
+}
+
+function closePanel() {
+  const panel = document.getElementById("info-panel");
+  panel.classList.remove("visible");
+  currentPanelSat = null;
+}
 
 </script>
 </body>
