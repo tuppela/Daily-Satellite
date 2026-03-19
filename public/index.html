@@ -830,36 +830,29 @@ function getSatCartesian(tle1, tle2, date) {
   } catch(e) { return null; }
 }
 
+// Track trail entities in a dedicated array
+const trailEntities = [];
+
 // Draw a static fading trail for the selected satellite
-// Computed once on selection — no callbacks, no per-frame updates
 function drawSelectedOrbit(sat) {
-  // Nuclear option — remove everything except dots
-  const toRemove = viewer.entities.values.filter(e => e._orbitRing);
-  toRemove.forEach(e => viewer.entities.remove(e));
-  selectedOrbitEntity = null;
+  // Remove all existing trail entities using our tracked array
+  while (trailEntities.length > 0) {
+    const e = trailEntities.pop();
+    viewer.entities.remove(e);
+  }
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
   const periodMinutes = 1440 / satrec.no;
-  const trailMs = (periodMinutes / 4) * 60 * 1000; // 90° of orbit
+  const trailMs = (periodMinutes / 4) * 60 * 1000;
   const steps = 200;
   const now = new Date();
 
-  // Compute all trail points once, in ECEF
+  // Compute all trail points in ECEF
   const allPts = [];
   for (let i = 0; i <= steps; i++) {
-    // i=0 is tail (oldest), i=steps is head (satellite now)
     const t = new Date(now.getTime() - ((steps - i) / steps) * trailMs);
-    try {
-      const sr = satellite.twoline2satrec(sat.l1, sat.l2);
-      const pv = satellite.propagate(sr, t);
-      if (!pv.position) continue;
-      const gmst = satellite.gstime(t);
-      const cosG = Math.cos(gmst), sinG = Math.sin(gmst);
-      const x = (pv.position.x * cosG + pv.position.y * sinG) * 1000;
-      const y = (-pv.position.x * sinG + pv.position.y * cosG) * 1000;
-      const z = pv.position.z * 1000;
-      allPts.push({ c: new Cesium.Cartesian3(x, y, z), i });
-    } catch(e) {}
+    const c = getSatCartesian(sat.l1, sat.l2, t);
+    if (c) allPts.push(c);
   }
 
   if (allPts.length < 2) return;
@@ -871,7 +864,7 @@ function drawSelectedOrbit(sat) {
   for (let s = 0; s < segCount; s++) {
     const start = s * segSize;
     const end = Math.min((s + 1) * segSize + 1, allPts.length);
-    const pts = allPts.slice(start, end).map(p => p.c);
+    const pts = allPts.slice(start, end);
     if (pts.length < 2) continue;
 
     const opacity = ((s + 1) / segCount) * 0.7;
@@ -885,8 +878,7 @@ function drawSelectedOrbit(sat) {
         ),
       }
     });
-    e._orbitRing = true;
-    selectedOrbitEntity = e;
+    trailEntities.push(e);
   }
 }
 
