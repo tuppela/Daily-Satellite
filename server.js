@@ -21,7 +21,7 @@ function httpsGet(url) {
 
 app.get("/api/test", async (req, res) => {
   try {
-    const url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=JSON";
+    const url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE";
     const { status, body } = await httpsGet(url);
     res.setHeader("Content-Type", "application/json");
     res.send(JSON.stringify({ status, bodyPreview: body.slice(0, 500) }));
@@ -37,29 +37,28 @@ app.get("/api/tle/:norad", async (req, res) => {
 
   const cached = tleCache[norad];
   if (cached && Date.now() - cached.time < CACHE_TTL) {
-    console.log(`TLE cache hit: ${norad}`);
     return res.json(cached.data);
   }
 
   try {
-    const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${norad}&FORMAT=JSON`;
+    const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${norad}&FORMAT=TLE`;
     console.log(`Fetching TLE for NORAD ${norad}...`);
     const { status, body } = await httpsGet(url);
-    console.log(`CelesTrak status: ${status}, body: ${body.slice(0, 100)}`);
 
     if (status !== 200) return res.status(502).json({ error: `CelesTrak ${status}` });
 
-    const json = JSON.parse(body);
-    if (!json || json.length === 0) return res.status(404).json({ error: `No data for ${norad}` });
+    // TLE format: name line, line1, line2
+    const lines = body.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    let name = null, l1 = null, l2 = null;
+    for (const line of lines) {
+      if (line.startsWith("1 ") && line.length > 50) l1 = line;
+      else if (line.startsWith("2 ") && line.length > 50) l2 = line;
+      else if (!name) name = line;
+    }
 
-    const obj = json[0];
-    const l1 = obj.TLE_LINE1;
-    const l2 = obj.TLE_LINE2;
-    const name = obj.OBJECT_NAME || String(norad);
+    if (!l1 || !l2) return res.status(404).json({ error: `No TLE for ${norad}`, lines });
 
-    if (!l1 || !l2) return res.status(404).json({ error: `No TLE lines for ${norad}`, obj });
-
-    const result = { norad, name, l1, l2 };
+    const result = { norad, name: name || String(norad), l1, l2 };
     tleCache[norad] = { time: Date.now(), data: result };
     console.log(`TLE OK: ${name}`);
     res.json(result);
