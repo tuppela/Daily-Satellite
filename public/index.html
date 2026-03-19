@@ -320,21 +320,23 @@ let SATELLITES = [];
 
 // ─── LIVE TLE FETCH via server proxy ─────────────────────────────────────────
 async function fetchLiveTLEs(catalogue) {
-  const results = await Promise.all(
-    catalogue.map(async sat => {
-      try {
-        const res = await fetch(`/api/tle/${sat.norad}`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        if (data.l1 && data.l2) return { ...sat, l1: data.l1, l2: data.l2 };
-        return null;
-      } catch(e) {
-        console.warn(`TLE fetch failed: ${sat.name}`, e);
-        return null;
+  const results = [];
+  for (const sat of catalogue) {
+    try {
+      const res = await fetch(`/api/tle/${sat.norad}`);
+      if (!res.ok) { console.warn(`TLE ${sat.name}: HTTP ${res.status}`); continue; }
+      const data = await res.json();
+      if (data.l1 && data.l2) {
+        results.push({ ...sat, l1: data.l1, l2: data.l2 });
+        console.log(`TLE OK: ${sat.name}`);
       }
-    })
-  );
-  return results.filter(Boolean);
+    } catch(e) {
+      console.warn(`TLE fetch failed: ${sat.name}`, e);
+    }
+    // Small delay between requests to avoid hammering CelesTrak
+    await new Promise(r => setTimeout(r, 200));
+  }
+  return results;
 }
 // ─── SEASON LOGIC ────────────────────────────────────────────────────────────
 function getCurrentSeason() {
@@ -652,6 +654,9 @@ function flyToSatellite(sat) {
 
   autoRotate = false;
 
+  // Clear any existing tracked entity first
+  viewer.trackedEntity = undefined;
+
   const pos = propagateSatellite(sat.l1, sat.l2, new Date());
   if (!pos) return;
 
@@ -667,7 +672,7 @@ function flyToSatellite(sat) {
     duration: 2.5,
     easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     complete: () => {
-      // Lock camera to satellite entity
+      // Lock camera to entity — Earth rolls underneath
       viewer.trackedEntity = found.entity;
     }
   });
