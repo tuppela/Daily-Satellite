@@ -5,7 +5,6 @@ const https = require("https");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ─── TLE PROXY — must be before static middleware ─────────────────────────────
 const tleCache = {};
 const CACHE_TTL = 60 * 60 * 1000;
 
@@ -19,15 +18,62 @@ function httpsGet(url) {
   });
 }
 
+function parseTLEText(body) {
+  // Parse multi-satellite TLE text into a map of norad -> {name, l1, l2}
+  const lines = body.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  const result = {};
+  for (let i = 0; i < lines.length - 1; i++) {
+    const l1 = lines[i];
+    const l2 = lines[i + 1];
+    if (l1.startsWith("1 ") && l1.length > 50 && l2.startsWith("2 ") && l2.length > 50) {
+      const norad = parseInt(l1.substring(2, 7).trim());
+      const name = i > 0 && !lines[i-1].startsWith("1 ") && !lines[i-1].startsWith("2 ")
+        ? lines[i-1] : String(norad);
+      result[norad] = { norad, name, l1, l2 };
+      i++; // skip l2
+    }
+  }
+  return result;
+}
+
+// Fetch all TLEs in one request
+app.get("/api/tle/batch", async (req, res) => {
+  const noradIds = req.query.ids;
+  if (!noradIds) return res.status(400).json({ error: "Missing ids parameter" });
+
+  const cacheKey = "batch_" + noradIds;
+  const cached = tleCache[cacheKey];
+  if (cached && Date.now() - cached.time < CACHE_TTL) {
+    return res.json(cached.data);
+  }
+
+  try {
+    // Fetch all at once using comma-separated CATNR
+    const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradIds}&FORMAT=TLE`;
+    console.log(`Batch TLE fetch for: ${noradIds}`);
+    const { status, body } = await httpsGet(url);
+    console.log(`CelesTrak batch status: ${status}, length: ${body.length}`);
+
+    if (status !== 200) return res.status(502).json({ error: `CelesTrak ${status}` });
+
+    const tles = parseTLEText(body);
+    console.log(`Parsed ${Object.keys(tles).length} TLEs`);
+
+    tleCache[cacheKey] = { time: Date.now(), data: tles };
+    res.json(tles);
+  } catch (err) {
+    console.error("Batch TLE error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/test", async (req, res) => {
   try {
-    const url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE";
+    const url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544,48274,20580&FORMAT=TLE";
     const { status, body } = await httpsGet(url);
-    res.setHeader("Content-Type", "application/json");
-    res.send(JSON.stringify({ status, bodyPreview: body.slice(0, 500) }));
+    res.json({ status, bodyPreview: body.slice(0, 300), lines: body.split("\n").length });
   } catch(e) {
-    res.setHeader("Content-Type", "application/json");
-    res.send(JSON.stringify({ error: e.message }));
+    res.json({ error: e.message });
   }
 });
 
@@ -42,12 +88,9 @@ app.get("/api/tle/:norad", async (req, res) => {
 
   try {
     const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${norad}&FORMAT=TLE`;
-    console.log(`Fetching TLE for NORAD ${norad}...`);
     const { status, body } = await httpsGet(url);
-
     if (status !== 200) return res.status(502).json({ error: `CelesTrak ${status}` });
 
-    // TLE format: name line, line1, line2
     const lines = body.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     let name = null, l1 = null, l2 = null;
     for (const line of lines) {
@@ -56,21 +99,17 @@ app.get("/api/tle/:norad", async (req, res) => {
       else if (!name) name = line;
     }
 
-    if (!l1 || !l2) return res.status(404).json({ error: `No TLE for ${norad}`, lines });
+    if (!l1 || !l2) return res.status(404).json({ error: `No TLE for ${norad}`, body: body.slice(0, 200) });
 
     const result = { norad, name: name || String(norad), l1, l2 };
     tleCache[norad] = { time: Date.now(), data: result };
-    console.log(`TLE OK: ${name}`);
     res.json(result);
   } catch (err) {
-    console.error(`TLE error for ${norad}:`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── STATIC FILES — after API routes ─────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
-
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
