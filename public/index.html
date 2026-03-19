@@ -318,25 +318,18 @@ const SATELLITE_CATALOGUE = [
 // Active satellite list — populated after TLE fetch
 let SATELLITES = [];
 
-// ─── LIVE TLE FETCH ──────────────────────────────────────────────────────────
+// ─── LIVE TLE FETCH via server proxy ─────────────────────────────────────────
 async function fetchLiveTLEs(catalogue) {
   const results = await Promise.all(
     catalogue.map(async sat => {
       try {
-        const url = `https://celestrak.org/satcat/tle.php?CATNR=${sat.norad}`;
-        const res = await fetch(url);
-        const text = await res.text();
-        const lines = text.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-        // TLE response: name line, line1 (starts with "1 "), line2 (starts with "2 ")
-        let l1 = null, l2 = null;
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].startsWith("1 ") && lines[i].length > 50) l1 = lines[i];
-          if (lines[i].startsWith("2 ") && lines[i].length > 50) l2 = lines[i];
-        }
-        if (l1 && l2) return { ...sat, l1, l2 };
+        const res = await fetch(`/api/tle/${sat.norad}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.l1 && data.l2) return { ...sat, l1: data.l1, l2: data.l2 };
         return null;
       } catch(e) {
-        console.warn(`TLE fetch failed: ${sat.name}`);
+        console.warn(`TLE fetch failed: ${sat.name}`, e);
         return null;
       }
     })
