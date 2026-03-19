@@ -639,28 +639,6 @@ handler.setInputAction((click) => {
 let trackedSat = null;
 
 function flyToSatellite(sat) {
-  autoRotate = false;
-  trackedSat = sat;
-
-  const pos = propagateSatellite(sat.l1, sat.l2, new Date());
-  if (!pos) return;
-
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + 1200000),
-    orientation: {
-      heading: Cesium.Math.toRadians(0),
-      pitch: Cesium.Math.toRadians(-90),
-      roll: 0,
-    },
-    duration: 2.5,
-    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
-  });
-}
-
-// ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
-let trackedSat = null;
-
-function flyToSatellite(sat) {
   const found = satDots.find(d => d.sat.id === sat.id);
   if (!found) return;
 
