@@ -709,6 +709,7 @@ viewer.scene.canvas.addEventListener("touchstart", () => {
 let currentSatellites = [];
 
 function initDailyCard(satellites) {
+  if (!satellites || satellites.length === 0) return;
   const { satellite: daily, issueNum } = getDailySatellite(satellites);
   
   document.getElementById("daily-card-issue").textContent = `Issue No. ${issueNum} — Daily Satellite`;

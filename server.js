@@ -19,15 +19,16 @@ function httpsGet(url) {
 }
 
 function parseTLEText(body) {
-  // Parse multi-satellite TLE text into a map of norad -> {name, l1, l2}
   const lines = body.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   const result = {};
-  for (let i = 0; i < lines.length - 1; i++) {
-    const l1 = lines[i];
-    const l2 = lines[i + 1];
-    if (l1.startsWith("1 ") && l1.length > 50 && l2.startsWith("2 ") && l2.length > 50) {
+  for (let i = 0; i < lines.length; i++) {
+    // TLE format: optional name line, then "1 NNNNN...", then "2 NNNNN..."
+    if (lines[i].startsWith("1 ") && lines[i].length > 50 &&
+        i + 1 < lines.length && lines[i+1].startsWith("2 ")) {
+      const l1 = lines[i];
+      const l2 = lines[i+1];
       const norad = parseInt(l1.substring(2, 7).trim());
-      const name = i > 0 && !lines[i-1].startsWith("1 ") && !lines[i-1].startsWith("2 ")
+      const name = (i > 0 && !lines[i-1].startsWith("1 ") && !lines[i-1].startsWith("2 "))
         ? lines[i-1] : String(norad);
       result[norad] = { norad, name, l1, l2 };
       i++; // skip l2
@@ -44,20 +45,28 @@ app.get("/api/tle/batch", async (req, res) => {
   const cacheKey = "batch_" + noradIds;
   const cached = tleCache[cacheKey];
   if (cached && Date.now() - cached.time < CACHE_TTL) {
+    console.log("Batch TLE cache hit");
     return res.json(cached.data);
   }
 
   try {
-    // Fetch all at once using comma-separated CATNR
+    // CelesTrak accepts comma-separated CATNR
     const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradIds}&FORMAT=TLE`;
-    console.log(`Batch TLE fetch for: ${noradIds}`);
+    console.log(`Batch fetch: ${url}`);
     const { status, body } = await httpsGet(url);
-    console.log(`CelesTrak batch status: ${status}, length: ${body.length}`);
+    console.log(`CelesTrak batch: status=${status}, bytes=${body.length}, preview="${body.slice(0,100)}"`);
 
     if (status !== 200) return res.status(502).json({ error: `CelesTrak ${status}` });
+    if (!body.trim()) return res.status(404).json({ error: "Empty response from CelesTrak" });
 
     const tles = parseTLEText(body);
-    console.log(`Parsed ${Object.keys(tles).length} TLEs`);
+    const count = Object.keys(tles).length;
+    console.log(`Parsed ${count} TLEs from batch`);
+
+    if (count === 0) {
+      // Return raw body for debugging
+      return res.status(404).json({ error: "No TLEs parsed", bodyPreview: body.slice(0, 300) });
+    }
 
     tleCache[cacheKey] = { time: Date.now(), data: tles };
     res.json(tles);
