@@ -660,7 +660,9 @@ function updateClock() {
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1Mjg4OTBhZi02ZGIyLTQyODctYmFjNi0zOGU5NDYyMWEyMTAiLCJpZCI6NDA1ODA1LCJpYXQiOjE3NzM4Njc3MTF9.CFdFGvkYFZms0KCnD6hvlF6f1QHyQ8MiefrOWe49dzk";
 
 const viewer = new Cesium.Viewer("cesium-container", {
-  imageryProvider: new Cesium.IonImageryProvider({ assetId: 3845 }),
+  imageryProvider: new Cesium.TileMapServiceImageryProvider({
+  url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+}),
   terrainProvider: new Cesium.EllipsoidTerrainProvider(),
   animation: false,
   baseLayerPicker: false,
