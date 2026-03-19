@@ -777,18 +777,21 @@ function drawOrbitsAndDots(satellites) {
   satellites.forEach((sat, idx) => {
     const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
 
-    // ── Satellite dot: real-time ECEF position ──
-    const dotPosition = new Cesium.CallbackProperty(() => {
-      const satrec2 = satellite.twoline2satrec(sat.l1, sat.l2);
-      const posVel = satellite.propagate(satrec2, new Date());
-      if (!posVel.position) return new Cesium.Cartesian3(0, 0, 6800000);
-      const gmst = satellite.gstime(new Date());
-      const cosG = Math.cos(gmst), sinG = Math.sin(gmst);
-      const x = posVel.position.x * cosG + posVel.position.y * sinG;
-      const y = -posVel.position.x * sinG + posVel.position.y * cosG;
-      const z = posVel.position.z;
-      return new Cesium.Cartesian3(x * 1000, y * 1000, z * 1000);
-    }, false);
+    // ── Satellite dot: static position, updated by interval ──
+    const now2 = new Date();
+    const satrec2 = satellite.twoline2satrec(sat.l1, sat.l2);
+    const pv2 = satellite.propagate(satrec2, now2);
+    let initPos = new Cesium.Cartesian3(0, 0, 6800000);
+    if (pv2.position) {
+      const gmst2 = satellite.gstime(now2);
+      const cg = Math.cos(gmst2), sg = Math.sin(gmst2);
+      initPos = new Cesium.Cartesian3(
+        (pv2.position.x * cg + pv2.position.y * sg) * 1000,
+        (-pv2.position.x * sg + pv2.position.y * cg) * 1000,
+        pv2.position.z * 1000
+      );
+    }
+    const dotPosition = new Cesium.ConstantPositionProperty(initPos);
 
     const dotEntity = viewer.entities.add({
       position: dotPosition,
@@ -827,41 +830,54 @@ function getSatCartesian(tle1, tle2, date) {
   } catch(e) { return null; }
 }
 
-// Draw a fading trail behind the selected satellite
+// Draw a static fading trail for the selected satellite
+// Computed once on selection — no callbacks, no per-frame updates
 function drawSelectedOrbit(sat) {
-  viewer.entities.values
-    .filter(e => e._orbitRing)
-    .forEach(e => viewer.entities.remove(e));
+  // Nuclear option — remove everything except dots
+  const toRemove = viewer.entities.values.filter(e => e._orbitRing);
+  toRemove.forEach(e => viewer.entities.remove(e));
   selectedOrbitEntity = null;
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
   const periodMinutes = 1440 / satrec.no;
-  const trailMs = (periodMinutes / 4) * 60 * 1000;
-  const steps = 180;
-  const segmentCount = 6;
+  const trailMs = (periodMinutes / 4) * 60 * 1000; // 90° of orbit
+  const steps = 200;
+  const now = new Date();
 
-  for (let s = 0; s < segmentCount; s++) {
-    const segStart = s / segmentCount;
-    const segEnd = (s + 1) / segmentCount;
-    const opacity = ((s + 1) / segmentCount) * 0.65;
+  // Compute all trail points once, in ECEF
+  const allPts = [];
+  for (let i = 0; i <= steps; i++) {
+    // i=0 is tail (oldest), i=steps is head (satellite now)
+    const t = new Date(now.getTime() - ((steps - i) / steps) * trailMs);
+    try {
+      const sr = satellite.twoline2satrec(sat.l1, sat.l2);
+      const pv = satellite.propagate(sr, t);
+      if (!pv.position) continue;
+      const gmst = satellite.gstime(t);
+      const cosG = Math.cos(gmst), sinG = Math.sin(gmst);
+      const x = (pv.position.x * cosG + pv.position.y * sinG) * 1000;
+      const y = (-pv.position.x * sinG + pv.position.y * cosG) * 1000;
+      const z = pv.position.z * 1000;
+      allPts.push({ c: new Cesium.Cartesian3(x, y, z), i });
+    } catch(e) {}
+  }
 
-    const segPositions = new Cesium.CallbackProperty(() => {
-      const now = new Date();
-      const startStep = Math.floor(segStart * steps);
-      const endStep = Math.floor(segEnd * steps);
-      const pts = [];
-      for (let i = startStep; i <= endStep; i++) {
-        // i=0 is tail (oldest), i=steps is head (current)
-        const t = new Date(now.getTime() - ((steps - i) / steps) * trailMs);
-        const c = getSatCartesian(sat.l1, sat.l2, t);
-        if (c) pts.push(c);
-      }
-      return pts;
-    }, false);
+  if (allPts.length < 2) return;
 
-    const segEntity = viewer.entities.add({
+  // Draw as 8 segments with increasing opacity tail→head
+  const segCount = 8;
+  const segSize = Math.floor(allPts.length / segCount);
+
+  for (let s = 0; s < segCount; s++) {
+    const start = s * segSize;
+    const end = Math.min((s + 1) * segSize + 1, allPts.length);
+    const pts = allPts.slice(start, end).map(p => p.c);
+    if (pts.length < 2) continue;
+
+    const opacity = ((s + 1) / segCount) * 0.7;
+    const e = viewer.entities.add({
       polyline: {
-        positions: segPositions,
+        positions: pts,
         width: 1.5,
         arcType: Cesium.ArcType.NONE,
         material: new Cesium.ColorMaterialProperty(
@@ -869,14 +885,19 @@ function drawSelectedOrbit(sat) {
         ),
       }
     });
-    segEntity._orbitRing = true;
-    selectedOrbitEntity = segEntity;
+    e._orbitRing = true;
+    selectedOrbitEntity = e;
   }
 }
 
 // ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
-// Positions update automatically via CallbackProperty — nothing needed here
-function updateSatPositions() {}
+function updateSatPositions() {
+  const now = new Date();
+  satDots.forEach(({ entity, sat }) => {
+    const c = getSatCartesian(sat.l1, sat.l2, now);
+    if (c) entity.position = new Cesium.ConstantPositionProperty(c);
+  });
+}
 
 // ─── HOVER DETECTION ─────────────────────────────────────────────────────────
 const tooltip = document.getElementById("sat-tooltip");
