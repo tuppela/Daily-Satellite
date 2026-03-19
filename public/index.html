@@ -402,19 +402,13 @@ globe.enableLighting = false;
 globe.showGroundAtmosphere = false;
 scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
 
-// Remove default imagery and add Google Maps satellite
+// Remove default imagery and add Bing Maps Aerial
 viewer.imageryLayers.removeAll();
-Cesium.IonImageryProvider.fromAssetId(3830182).then(provider => {
+Cesium.IonImageryProvider.fromAssetId(2).then(provider => {
   viewer.imageryLayers.addImageryProvider(provider);
+  console.log("Bing imagery loaded");
 }).catch(err => {
-  console.error("Imagery load failed:", err);
-  // Fallback to Bing
-  Cesium.IonImageryProvider.fromAssetId(2).then(p => {
-    viewer.imageryLayers.addImageryProvider(p);
-  }).catch(() => {
-    // Last resort — default blue ocean is fine
-    console.warn("All imagery fallbacks failed");
-  });
+  console.error("Bing imagery failed:", err);
 });
 scene.moon = undefined;
 
