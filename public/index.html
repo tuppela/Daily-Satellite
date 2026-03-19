@@ -806,7 +806,7 @@ function drawOrbitsAndDots(satellites) {
 
 // Draw a fading trail behind the selected satellite
 function drawSelectedOrbit(sat) {
-  // Remove all previous orbit/trail entities
+  // Remove all previous trail entities
   viewer.entities.values
     .filter(e => e._orbitRing)
     .forEach(e => viewer.entities.remove(e));
@@ -814,56 +814,37 @@ function drawSelectedOrbit(sat) {
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
   const periodMinutes = 1440 / satrec.no;
-  // 90 degrees = 1/4 of orbital period
-  const trailMinutes = periodMinutes / 4;
-  const trailMs = trailMinutes * 60 * 1000;
-  const steps = 120; // enough for a smooth curve
-
-  // Use CallbackProperty so trail moves with the satellite in real time
-  const trailPositions = new Cesium.CallbackProperty(() => {
-    const now = new Date();
-    const pts = [];
-    for (let i = steps; i >= 0; i--) {
-      const t = new Date(now.getTime() - (i / steps) * trailMs);
-      const pos = propagateSatellite(sat.l1, sat.l2, t);
-      if (pos) pts.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
-    }
-    return pts;
-  }, false);
-
-  // Fading trail — use PolylineGlowMaterialProperty for soft fade
-  const trailEntity = viewer.entities.add({
-    polyline: {
-      positions: trailPositions,
-      width: 1.5,
-      arcType: Cesium.ArcType.NONE,
-      material: new Cesium.PolylineDashMaterialProperty({
-        color: new Cesium.Color(0.1, 0.087, 0.063, 0.0),
-        gapColor: Cesium.Color.TRANSPARENT,
-        dashLength: 0,
-      }),
-    }
-  });
-
-  // Actually use a simple color material — fade handled by opacity
-  viewer.entities.remove(trailEntity);
-
-  // Draw trail as multiple segments with decreasing opacity for fade effect
+  const trailMs = (periodMinutes / 4) * 60 * 1000; // 90 degrees = 1/4 period
+  const steps = 120;
   const segmentCount = 6;
+
   for (let s = 0; s < segmentCount; s++) {
     const segStart = s / segmentCount;
     const segEnd = (s + 1) / segmentCount;
-    const opacity = (s + 1) / segmentCount * 0.55; // 0 at tail, 0.55 at head
+    const opacity = ((s + 1) / segmentCount) * 0.6;
 
     const segPositions = new Cesium.CallbackProperty(() => {
       const now = new Date();
-      const pts = [];
       const startStep = Math.floor(segStart * steps);
       const endStep = Math.floor(segEnd * steps);
+
+      // Collect raw positions
+      const raw = [];
       for (let i = startStep; i <= endStep; i++) {
+        // i=steps is now (head), i=0 is oldest (tail)
         const t = new Date(now.getTime() - ((steps - i) / steps) * trailMs);
         const pos = propagateSatellite(sat.l1, sat.l2, t);
-        if (pos) pts.push(Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt));
+        if (pos) raw.push(pos);
+      }
+
+      if (raw.length < 2) return [];
+
+      // Break at antimeridian crossings — return only first continuous segment
+      const pts = [Cesium.Cartesian3.fromDegrees(raw[0].lon, raw[0].lat, raw[0].alt)];
+      for (let i = 1; i < raw.length; i++) {
+        const dLon = Math.abs(raw[i].lon - raw[i-1].lon);
+        if (dLon > 180) break; // antimeridian crossing — stop here
+        pts.push(Cesium.Cartesian3.fromDegrees(raw[i].lon, raw[i].lat, raw[i].alt));
       }
       return pts;
     }, false);
@@ -871,7 +852,7 @@ function drawSelectedOrbit(sat) {
     const segEntity = viewer.entities.add({
       polyline: {
         positions: segPositions,
-        width: 1.2,
+        width: 1.5,
         arcType: Cesium.ArcType.NONE,
         material: new Cesium.ColorMaterialProperty(
           new Cesium.Color(0.1, 0.087, 0.063, opacity)
