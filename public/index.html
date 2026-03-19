@@ -399,12 +399,6 @@ const viewer = new Cesium.Viewer("cesium-container", {
 const scene = viewer.scene;
 const globe = scene.globe;
 
-// Set clock to real time — required for path entity rendering
-viewer.clock.currentTime = Cesium.JulianDate.now();
-viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
-viewer.clock.multiplier = 1;
-viewer.clock.shouldAnimate = true;
-
 globe.enableLighting = true;
 globe.atmosphereLightIntensity = 15.0;
 globe.showGroundAtmosphere = true;
@@ -460,32 +454,44 @@ function propagateSatellite(tle1, tle2, date) {
   } catch(e) { return null; }
 }
 
-// Draw all orbit hairlines
+// Draw all satellite dots using SampledPositionProperty driven by Cesium clock
 const satDots = [];
 let selectedOrbitEntity = null;
 
-function drawOrbitsAndDots(satellites) {
-  satellites.forEach((sat, idx) => {
-    const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
+function buildSampledPosition(sat) {
+  const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
+  const periodMinutes = 1440 / satrec.no;
+  const periodMs = periodMinutes * 60 * 1000;
+  const now = new Date();
+  const sampledPos = new Cesium.SampledPositionProperty();
 
-    // ── Satellite dot: static position, updated by interval ──
-    const now2 = new Date();
-    const satrec2 = satellite.twoline2satrec(sat.l1, sat.l2);
-    const pv2 = satellite.propagate(satrec2, now2);
-    let initPos = new Cesium.Cartesian3(0, 0, 6800000);
-    if (pv2.position) {
-      const gmst2 = satellite.gstime(now2);
-      const cg = Math.cos(gmst2), sg = Math.sin(gmst2);
-      initPos = new Cesium.Cartesian3(
-        (pv2.position.x * cg + pv2.position.y * sg) * 1000,
-        (-pv2.position.x * sg + pv2.position.y * cg) * 1000,
-        pv2.position.z * 1000
-      );
-    }
-    const dotPosition = new Cesium.ConstantPositionProperty(initPos);
+  // Sample 3 full orbits centred on now — past and future
+  const steps = 180;
+  for (let i = -steps; i <= steps; i++) {
+    const t = new Date(now.getTime() + (i / steps) * 3 * periodMs);
+    const c = getSatCartesian(sat.l1, sat.l2, t);
+    if (c) sampledPos.addSample(Cesium.JulianDate.fromDate(t), c);
+  }
+
+  sampledPos.setInterpolationOptions({
+    interpolationDegree: 5,
+    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
+  });
+  return sampledPos;
+}
+
+function drawOrbitsAndDots(satellites) {
+  // Set Cesium clock to current time
+  viewer.clock.currentTime = Cesium.JulianDate.now();
+  viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
+  viewer.clock.multiplier = 1;
+  viewer.clock.shouldAnimate = true;
+
+  satellites.forEach((sat, idx) => {
+    const sampledPos = buildSampledPosition(sat);
 
     const dotEntity = viewer.entities.add({
-      position: dotPosition,
+      position: sampledPos,
       point: {
         pixelSize: 5,
         color: Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)"),
@@ -500,7 +506,7 @@ function drawOrbitsAndDots(satellites) {
         satIdx: idx,
       },
     });
-    satDots.push({ entity: dotEntity, sat, idx });
+    satDots.push({ entity: dotEntity, sat, idx, sampledPos });
   });
 }
 
@@ -524,65 +530,40 @@ function getSatCartesian(tle1, tle2, date) {
 // Track trail entities
 const trailEntities = [];
 
-// Draw a smooth fading trail using SampledPositionProperty + path
+// Draw trail by adding path property to the satellite's own entity
 function drawSelectedOrbit(sat) {
-  // Remove all existing trail entities
+  // Remove previous trail path entities
   while (trailEntities.length > 0) {
-    viewer.entities.remove(trailEntities.pop());
+    const e = trailEntities.pop();
+    // Remove path from entity rather than removing the entity
+    if (e && e.path) e.path.show = false;
   }
+
+  const found = satDots.find(d => d.sat.id === sat.id);
+  if (!found) return;
 
   const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
   const periodMinutes = 1440 / satrec.no;
-  const trailSeconds = (periodMinutes / 4) * 60; // 90° of orbit in seconds
-  const now = new Date();
-  const nowJD = Cesium.JulianDate.fromDate(now);
+  const trailSeconds = (periodMinutes / 4) * 60; // 90° trail
 
-  // Build a SampledPositionProperty with positions over the trail window
-  const sampledPos = new Cesium.SampledPositionProperty();
-  const steps = 40; // enough for Lagrange to interpolate smoothly
-
-  for (let i = 0; i <= steps; i++) {
-    const secsAgo = trailSeconds * (1 - i / steps); // steps ago → now
-    const t = new Date(now.getTime() - secsAgo * 1000);
-    const jd = Cesium.JulianDate.fromDate(t);
-    const c = getSatCartesian(sat.l1, sat.l2, t);
-    if (c) sampledPos.addSample(jd, c);
-  }
-
-  sampledPos.setInterpolationOptions({
-    interpolationDegree: 5,
-    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
+  // Add path to the existing dot entity
+  found.entity.path = new Cesium.PathGraphics({
+    resolution: 60,
+    leadTime: 0,
+    trailTime: trailSeconds,
+    width: 1.5,
+    material: new Cesium.PolylineGlowMaterialProperty({
+      glowPower: 0.05,
+      color: new Cesium.Color(0.1, 0.087, 0.063, 0.9),
+    }),
   });
 
-  // Create entity with a path — Cesium draws the smooth curve
-  const trailStart = Cesium.JulianDate.addSeconds(nowJD, -trailSeconds, new Cesium.JulianDate());
-  const trailEnd = nowJD;
-
-  const e = viewer.entities.add({
-    position: sampledPos,
-    path: {
-      resolution: 10,
-      leadTime: 0,
-      trailTime: trailSeconds,
-      width: 1.5,
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 0.1,
-        color: new Cesium.Color(0.1, 0.087, 0.063, 0.8),
-      }),
-    },
-  });
-
-  trailEntities.push(e);
+  trailEntities.push(found.entity);
 }
 
 // ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
-function updateSatPositions() {
-  const now = new Date();
-  satDots.forEach(({ entity, sat }) => {
-    const c = getSatCartesian(sat.l1, sat.l2, now);
-    if (c) entity.position = new Cesium.ConstantPositionProperty(c);
-  });
-}
+// SampledPositionProperty driven by Cesium clock — no manual updates needed
+function updateSatPositions() {}
 
 // ─── HOVER DETECTION ─────────────────────────────────────────────────────────
 const tooltip = document.getElementById("sat-tooltip");
