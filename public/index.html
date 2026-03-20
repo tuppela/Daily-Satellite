@@ -299,7 +299,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 32px;
+      padding: 16px 40px;
       border-bottom: 1px solid var(--panel-ghost);
       flex-shrink: 0;
     }
@@ -338,27 +338,27 @@
       display: grid;
       grid-template-columns: 58% 42%;
       flex-shrink: 0;
-      padding: 36px 32px 24px;
+      padding: 40px 40px 0;
       gap: 0 24px;
     }
 
-    #panel-name-block { grid-column: 1; }
-    #panel-data-block  { grid-column: 2; padding-top: 6px; }
+    #panel-name-block { grid-column: 1; padding-bottom: 32px; }
+    #panel-data-block  { grid-column: 2; padding-top: 8px; }
 
     #panel-sat-name {
-      font-family: var(--sc);
-      font-size: 36px;
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 42px;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      letter-spacing: -0.01em;
       color: var(--panel-ink);
       line-height: 1.1;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     #panel-sat-agency {
       font-family: var(--sc);
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 400;
       letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--panel-faint);
@@ -368,14 +368,14 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      padding: 7px 0;
+      padding: 8px 0;
       border-bottom: 1px solid var(--panel-ghost);
     }
 
     .panel-data-key {
       font-family: var(--sc);
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 400;
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--panel-faint);
@@ -383,10 +383,11 @@
 
     .panel-data-val {
       font-family: var(--sc);
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       color: var(--panel-ink);
+      text-align: right;
     }
 
     /* Scrollable body */
@@ -395,7 +396,7 @@
       overflow-y: auto;
       position: relative;
       scrollbar-width: none;
-      padding: 0 32px 48px;
+      padding: 0 40px 48px;
     }
     #panel-body::-webkit-scrollbar { display: none; }
 
