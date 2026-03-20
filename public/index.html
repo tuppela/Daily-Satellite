@@ -6,7 +6,7 @@
   <title>Orbital Register</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Source+Code+Pro:wght@400;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.css" rel="stylesheet" />
@@ -263,12 +263,12 @@
 
     /* ─── INFO PANEL ──────────────────────────────────────────────────────── */
     :root {
-      --dm: 'DM Mono', 'Courier New', monospace;
+      --sc: 'Source Code Pro', 'Courier New', monospace;
       --panel-bg: rgb(238, 233, 221);
-      --panel-border: rgba(26, 22, 16, 0.12);
-      --panel-text: rgba(26, 22, 16, 0.78);
-      --panel-faint: rgba(26, 22, 16, 0.35);
-      --panel-ghost: rgba(26, 22, 16, 0.08);
+      --panel-border: rgba(26, 22, 16, 0.14);
+      --panel-ink: rgba(26, 22, 16, 0.88);
+      --panel-faint: rgba(26, 22, 16, 0.38);
+      --panel-ghost: rgba(26, 22, 16, 0.09);
     }
 
     #info-panel {
@@ -277,8 +277,8 @@
       left: 50%;
       transform: translate(-50%, -50%) scale(0.96);
       z-index: 80;
-      width: min(560px, 80vh, 90vw);
-      height: min(560px, 80vh, 90vw);
+      width: min(780px, 92vw);
+      height: min(680px, 88vh);
       background: var(--panel-bg);
       border: 1px solid var(--panel-border);
       display: flex;
@@ -294,50 +294,99 @@
       transform: translate(-50%, -50%) scale(1);
     }
 
-    #info-panel.collapsed {
-      top: auto;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(400px, 90vw);
-      max-height: none;
-      height: auto;
-    }
-
-    /* Panel header */
+    /* Header bar */
     #panel-header {
-      padding: 28px 32px 20px;
-      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
       border-bottom: 1px solid var(--panel-ghost);
+      flex-shrink: 0;
     }
 
     #panel-sat-type {
-      font-family: var(--dm);
-      font-size: 8px;
-      font-weight: 400;
-      letter-spacing: 0.4em;
+      font-family: var(--sc);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: rgba(26, 22, 16, 0.4);
+      color: var(--panel-faint);
+    }
+
+    #panel-header-controls {
+      display: flex;
+      gap: 24px;
+    }
+
+    .panel-ctrl {
+      font-family: var(--sc);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .panel-ctrl:hover { color: var(--panel-ink); }
+
+    /* Fixed meta section — name + agency left, data table right */
+    #panel-main {
+      display: grid;
+      grid-template-columns: 58% 42%;
+      flex-shrink: 0;
+      padding: 36px 32px 24px;
+      gap: 0 24px;
+    }
+
+    #panel-name-block { grid-column: 1; }
+    #panel-data-block  { grid-column: 2; padding-top: 6px; }
+
+    #panel-sat-name {
+      font-family: var(--sc);
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--panel-ink);
+      line-height: 1.1;
       margin-bottom: 10px;
     }
 
-    #panel-sat-name {
-      font-family: var(--dm);
-      font-size: 20px;
-      font-weight: 400;
-      letter-spacing: 0.04em;
-      color: rgba(26, 22, 16, 0.92);
-      margin-bottom: 5px;
-      line-height: 1.2;
+    #panel-sat-agency {
+      font-family: var(--sc);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
     }
 
-    #panel-sat-agency {
-      font-family: var(--dm);
-      font-size: 9px;
-      font-weight: 300;
-      letter-spacing: 0.2em;
+    .panel-data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--panel-ghost);
+    }
+
+    .panel-data-key {
+      font-family: var(--sc);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      color: rgba(26, 22, 16, 0.32);
+      color: var(--panel-faint);
+    }
+
+    .panel-data-val {
+      font-family: var(--sc);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--panel-ink);
     }
 
     /* Scrollable body */
@@ -346,56 +395,43 @@
       overflow-y: auto;
       position: relative;
       scrollbar-width: none;
+      padding: 0 32px 48px;
     }
     #panel-body::-webkit-scrollbar { display: none; }
 
-    /* Fade top/bottom */
-    #panel-body::before,
-    #panel-body::after {
+    /* Fade at top — only visible when scrolled */
+    #panel-body::before {
       content: '';
       position: sticky;
+      top: 0;
       display: block;
-      left: 0; right: 0;
-      height: 36px;
+      height: 40px;
+      background: linear-gradient(to bottom, rgb(238,233,221) 0%, transparent 100%);
       z-index: 2;
       pointer-events: none;
-    }
-    #panel-body::before {
-      top: 0;
-      background: linear-gradient(to bottom, rgb(238,233,221) 0%, transparent 100%);
-      margin-bottom: -36px;
-    }
-    #panel-body::after {
-      bottom: 0;
-      background: linear-gradient(to top, rgb(238,233,221) 0%, transparent 100%);
-      margin-top: -36px;
+      margin-bottom: -40px;
     }
 
     #panel-text-content {
-      padding: 24px 32px;
-      max-width: 52ch;
-      margin: 0 auto;
-      font-family: 'IM Fell English', Georgia, serif;
-      font-size: 14px;
-      line-height: 1.85;
-      color: rgba(26, 22, 16, 0.78);
+      width: 58%;
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 15px;
+      line-height: 1.82;
+      color: var(--panel-ink);
+      padding-top: 4px;
     }
 
-    #panel-text-content p {
-      margin-bottom: 14px;
-      break-inside: avoid;
-    }
+    #panel-text-content p { margin-bottom: 18px; }
+    #panel-text-content p:last-child { margin-bottom: 0; }
 
     #panel-loading {
-      padding: 40px 0;
-      font-family: var(--dm);
+      font-family: var(--sc);
       font-size: 10px;
-      font-weight: 300;
+      font-weight: 400;
       letter-spacing: 0.3em;
       text-transform: uppercase;
-      color: rgba(26, 22, 16, 0.35);
-      text-align: center;
-      columns: 1;
+      color: var(--panel-faint);
+      padding-top: 8px;
     }
 
     #panel-loading::after {
@@ -410,109 +446,28 @@
       80%, 100% { content: '...'; }
     }
 
-    /* Data table */
-    #panel-data {
-      padding: 0 32px 20px;
-      flex-shrink: 0;
-      border-top: 1px solid var(--panel-ghost);
-    }
-
-    .panel-data-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 7px 0;
-      border-bottom: 1px dotted var(--panel-ghost);
-    }
-
-    .panel-data-key {
-      font-family: 'Josefin Sans', sans-serif;
-      font-size: 8px;
-      font-weight: 600;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--panel-faint);
-    }
-
-    .panel-data-val {
-      font-family: 'Courier Prime', monospace;
-      font-size: 11px;
-      color: rgba(240, 235, 224, 0.65);
-    }
-
-    /* Controls */
-    #panel-controls {
-      padding: 14px 32px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      flex-shrink: 0;
-      border-top: 1px solid var(--panel-ghost);
-    }
-
-    .panel-ctrl {
-      font-family: var(--dm);
-      font-size: 8px;
-      font-weight: 400;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--panel-faint);
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      transition: color 0.2s;
-    }
-    .panel-ctrl:hover { color: rgba(240, 235, 224, 0.8); }
-
-    #panel-waveform {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      margin-left: auto;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    #panel-waveform.active { opacity: 1; }
-    #panel-waveform span {
-      display: block;
-      width: 2px;
-      background: rgba(26, 22, 16, 0.3);
-      border-radius: 1px;
-      animation: panelwave 1.2s ease-in-out infinite;
-    }
-    #panel-waveform span:nth-child(1) { height: 5px; animation-delay: 0s; }
-    #panel-waveform span:nth-child(2) { height: 11px; animation-delay: 0.1s; }
-    #panel-waveform span:nth-child(3) { height: 7px; animation-delay: 0.2s; }
-    #panel-waveform span:nth-child(4) { height: 13px; animation-delay: 0.3s; }
-    #panel-waveform span:nth-child(5) { height: 5px; animation-delay: 0.4s; }
-    #panel-waveform span:nth-child(6) { height: 9px; animation-delay: 0.15s; }
-    #panel-waveform span:nth-child(7) { height: 4px; animation-delay: 0.25s; }
-
-    @keyframes panelwave {
-      0%, 100% { transform: scaleY(1); }
-      50% { transform: scaleY(0.3); }
-    }
-
     /* Collapsed bar */
-    #info-panel.collapsed #panel-body,
-    #info-panel.collapsed #panel-data,
-    #info-panel.collapsed #panel-header {
+    #info-panel.collapsed {
+      top: auto;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(420px, 90vw);
+      height: auto;
+    }
+
+    #info-panel.collapsed #panel-main,
+    #info-panel.collapsed #panel-body {
       display: none;
     }
 
-    #info-panel.collapsed #panel-controls {
-      justify-content: center;
-      padding: 12px 24px;
-    }
-
-    #collapsed-name {
-      font-family: var(--dm);
-      font-size: 10px;
-      font-weight: 400;
-      letter-spacing: 0.2em;
-      color: rgba(240, 235, 224, 0.6);
-      margin-right: auto;
+    #collapsed-label {
+      font-family: var(--sc);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
     }
 
   </style>
@@ -551,21 +506,21 @@
 <div id="info-panel">
   <div id="panel-header">
     <div id="panel-sat-type">◆ Loading</div>
-    <div id="panel-sat-name">—</div>
-    <div id="panel-sat-agency"></div>
+    <div id="panel-header-controls">
+      <button class="panel-ctrl" id="ctrl-collapse" onclick="togglePanel()">Collapse</button>
+      <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">Close</button>
+    </div>
+  </div>
+  <div id="panel-main">
+    <div id="panel-name-block">
+      <div id="panel-sat-name">—</div>
+      <div id="panel-sat-agency"></div>
+    </div>
+    <div id="panel-data-block"></div>
   </div>
   <div id="panel-body">
     <div id="panel-text-content">
       <p id="panel-loading">The archivist is searching the files</p>
-    </div>
-  </div>
-  <div id="panel-data"></div>
-  <div id="panel-controls">
-    <span id="collapsed-name"></span>
-    <button class="panel-ctrl" id="ctrl-collapse" onclick="togglePanel()">↙ Collapse</button>
-    <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">✕ Close</button>
-    <div id="panel-waveform">
-      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
     </div>
   </div>
 </div>
@@ -1046,10 +1001,9 @@ async function openPanel(sat) {
   document.getElementById("panel-sat-type").textContent = `◆ ${details.type || "Satellite"}`;
   document.getElementById("panel-sat-name").textContent = sat.name;
   document.getElementById("panel-sat-agency").textContent = details.agency || "";
-  document.getElementById("collapsed-name").textContent = sat.name;
 
   // Set data table
-  const dataEl = document.getElementById("panel-data");
+  const dataEl = document.getElementById("panel-data-block");
   const rows = [
     ["Altitude", details.alt],
     ["Inclination", details.inc],
@@ -1096,7 +1050,7 @@ function togglePanel() {
   const panel = document.getElementById("info-panel");
   panelCollapsed = !panelCollapsed;
   panel.classList.toggle("collapsed", panelCollapsed);
-  document.getElementById("ctrl-collapse").textContent = panelCollapsed ? "↗ Expand" : "↙ Collapse";
+  document.getElementById("ctrl-collapse").textContent = panelCollapsed ? "Expand" : "Collapse";
 }
 
 function closePanel() {
