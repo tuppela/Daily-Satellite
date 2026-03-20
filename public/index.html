@@ -399,17 +399,26 @@
     }
     #panel-body::-webkit-scrollbar { display: none; }
 
-    /* Fade at top — only visible when scrolled */
-    #panel-body::before {
-      content: '';
+    /* Top fade — sticky, only visible when scrolled */
+    #panel-fade-top {
       position: sticky;
       top: 0;
-      display: block;
-      height: 40px;
-      background: linear-gradient(to bottom, rgb(238,233,221) 0%, transparent 100%);
+      height: 48px;
+      background: linear-gradient(to bottom, rgb(238,233,221) 30%, transparent 100%);
       z-index: 2;
       pointer-events: none;
-      margin-bottom: -40px;
+      margin-bottom: -48px;
+    }
+
+    /* Bottom fade — permanent, sits over the content */
+    #panel-fade-bottom {
+      position: sticky;
+      bottom: 0;
+      height: 64px;
+      background: linear-gradient(to top, rgb(238,233,221) 40%, transparent 100%);
+      z-index: 2;
+      pointer-events: none;
+      margin-top: -64px;
     }
 
     #panel-text-content {
@@ -419,10 +428,18 @@
       line-height: 1.82;
       color: var(--panel-ink);
       padding-top: 4px;
+      padding-bottom: 32px;
     }
 
     #panel-text-content p { margin-bottom: 18px; }
     #panel-text-content p:last-child { margin-bottom: 0; }
+
+    /* Inline illustration */
+    .panel-illustration {
+      width: 100%;
+      margin: 24px 0;
+      opacity: 0.75;
+    }
 
     #panel-loading {
       font-family: var(--sc);
@@ -519,9 +536,11 @@
     <div id="panel-data-block"></div>
   </div>
   <div id="panel-body">
+    <div id="panel-fade-top"></div>
     <div id="panel-text-content">
       <p id="panel-loading">The archivist is searching the files</p>
     </div>
+    <div id="panel-fade-bottom"></div>
   </div>
 </div>
 
@@ -1025,6 +1044,14 @@ async function openPanel(sat) {
   // Show panel
   panel.classList.remove("collapsed");
   panel.classList.add("visible");
+
+  // Top fade only visible when scrolled
+  const body = document.getElementById("panel-body");
+  const fadeTop = document.getElementById("panel-fade-top");
+  fadeTop.style.opacity = "0";
+  body.onscroll = () => {
+    fadeTop.style.opacity = body.scrollTop > 20 ? "1" : "0";
+  };
 
   // Fetch story from Claude
   try {
