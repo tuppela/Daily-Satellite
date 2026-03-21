@@ -1023,10 +1023,12 @@ async function toggleNarrator() {
     return;
   }
 
-  // Get current text
+  // Get current text — first 2 paragraphs only for narrator
   const textEl = document.getElementById("panel-text-content");
-  const text = textEl.innerText.trim();
-  if (!text || text.includes("archivist is searching")) return;
+  const fullText = textEl.innerText.trim();
+  if (!fullText || fullText.includes("archivist is searching")) return;
+  const paragraphs = fullText.split(/\n+/).filter(p => p.trim().length > 0);
+  const text = paragraphs.slice(0, 2).join(" ");
 
   btn.textContent = "… Loading";
 
