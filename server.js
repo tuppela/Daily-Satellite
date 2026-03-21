@@ -158,7 +158,54 @@ app.post("/api/story", async (req, res) => {
   }
 });
 
-// ─── STATIC ──────────────────────────────────────────────────────────────────
+// ─── NARRATOR ENDPOINT ───────────────────────────────────────────────────────
+app.post("/api/narrate", async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: "Missing text" });
+
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "ElevenLabs API key not configured" });
+
+  const voiceId = "jiCqTo2ITOfNYppNYZtK";
+
+  try {
+    const body = JSON.stringify({
+      text,
+      model_id: "eleven_monolingual_v1",
+      voice_settings: { stability: 0.55, similarity_boost: 0.75 }
+    });
+
+    const options = {
+      hostname: "api.elevenlabs.io",
+      path: `/v1/text-to-speech/${voiceId}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": apiKey,
+        "Accept": "audio/mpeg",
+        "Content-Length": Buffer.byteLength(body)
+      }
+    };
+
+    const audioReq = https.request(options, (audioRes) => {
+      if (audioRes.statusCode !== 200) {
+        let err = "";
+        audioRes.on("data", d => err += d);
+        audioRes.on("end", () => res.status(502).json({ error: `ElevenLabs ${audioRes.statusCode}: ${err.slice(0,200)}` }));
+        return;
+      }
+      res.setHeader("Content-Type", "audio/mpeg");
+      audioRes.pipe(res);
+    });
+
+    audioReq.setTimeout(30000, () => { audioReq.destroy(); res.status(504).json({ error: "Timeout" }); });
+    audioReq.on("error", err => res.status(500).json({ error: err.message }));
+    audioReq.write(body);
+    audioReq.end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

@@ -541,6 +541,7 @@
   <div id="panel-header">
     <div id="panel-sat-type">◆ Loading</div>
     <div id="panel-header-controls">
+      <button class="panel-ctrl" id="ctrl-listen" onclick="toggleNarrator()">▶ Listen</button>
       <button class="panel-ctrl" id="ctrl-collapse" onclick="togglePanel()">Collapse</button>
       <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">Close</button>
     </div>
@@ -1007,7 +1008,56 @@ document.getElementById("season-indicator").classList.add("visible");
   setTimeout(() => initDailyCard(currentSatellites), 3500);
 })();
 
-// ─── INFO PANEL ───────────────────────────────────────────────────────────────
+// ─── NARRATOR ────────────────────────────────────────────────────────────────
+let narratorAudio = null;
+let narratorPlaying = false;
+
+async function toggleNarrator() {
+  const btn = document.getElementById("ctrl-listen");
+
+  if (narratorPlaying && narratorAudio) {
+    narratorAudio.pause();
+    narratorAudio = null;
+    narratorPlaying = false;
+    btn.textContent = "▶ Listen";
+    return;
+  }
+
+  // Get current text
+  const textEl = document.getElementById("panel-text-content");
+  const text = textEl.innerText.trim();
+  if (!text || text.includes("archivist is searching")) return;
+
+  btn.textContent = "… Loading";
+
+  try {
+    const res = await fetch("/api/narrate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    narratorAudio = new Audio(url);
+    narratorAudio.play();
+    narratorPlaying = true;
+    btn.textContent = "◼ Stop";
+
+    narratorAudio.onended = () => {
+      narratorPlaying = false;
+      btn.textContent = "▶ Listen";
+      URL.revokeObjectURL(url);
+    };
+  } catch(e) {
+    console.error("Narrator error:", e);
+    btn.textContent = "▶ Listen";
+  }
+}
+
+
 let panelCollapsed = false;
 let currentPanelSat = null;
 
@@ -1109,6 +1159,7 @@ function closePanel() {
   const panel = document.getElementById("info-panel");
   panel.classList.remove("visible");
   currentPanelSat = null;
+  if (narratorAudio) { narratorAudio.pause(); narratorAudio = null; narratorPlaying = false; }
 }
 
 </script>
