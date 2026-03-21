@@ -1023,12 +1023,10 @@ async function toggleNarrator() {
     return;
   }
 
-  // Get current text — first 2 paragraphs only for narrator
+  // Get full text
   const textEl = document.getElementById("panel-text-content");
-  const fullText = textEl.innerText.trim();
-  if (!fullText || fullText.includes("archivist is searching")) return;
-  const paragraphs = fullText.split(/\n+/).filter(p => p.trim().length > 0);
-  const text = paragraphs.slice(0, 2).join(" ");
+  const text = textEl.innerText.trim();
+  if (!text || text.includes("archivist is searching")) return;
 
   btn.textContent = "… Loading";
 
@@ -1036,7 +1034,7 @@ async function toggleNarrator() {
     const res = await fetch("/api/narrate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, satId: currentPanelSat?.id })
     });
 
     if (!res.ok) {

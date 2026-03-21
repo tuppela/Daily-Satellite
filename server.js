@@ -159,12 +159,28 @@ app.post("/api/story", async (req, res) => {
 });
 
 // ─── NARRATOR ENDPOINT ───────────────────────────────────────────────────────
+const fs = require("fs");
+const crypto = require("crypto");
+const AUDIO_CACHE_DIR = path.join(__dirname, "audio-cache");
+if (!fs.existsSync(AUDIO_CACHE_DIR)) fs.mkdirSync(AUDIO_CACHE_DIR);
+
 app.post("/api/narrate", async (req, res) => {
-  const { text } = req.body;
+  const { text, satId } = req.body;
   if (!text) return res.status(400).json({ error: "Missing text" });
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ElevenLabs API key not configured" });
+
+  // Check cache first
+  const cacheKey = satId || crypto.createHash("md5").update(text).digest("hex");
+  const cachePath = path.join(AUDIO_CACHE_DIR, `${cacheKey}.mp3`);
+
+  if (fs.existsSync(cachePath)) {
+    console.log(`Audio cache hit: ${cacheKey}`);
+    res.setHeader("Content-Type", "audio/mpeg");
+    fs.createReadStream(cachePath).pipe(res);
+    return;
+  }
 
   const voiceId = "jiCqTo2ITOfNYppNYZtK";
 
@@ -194,8 +210,13 @@ app.post("/api/narrate", async (req, res) => {
         audioRes.on("end", () => res.status(502).json({ error: `ElevenLabs ${audioRes.statusCode}: ${err.slice(0,200)}` }));
         return;
       }
+
+      // Save to cache and stream to client simultaneously
+      const cacheStream = fs.createWriteStream(cachePath);
       res.setHeader("Content-Type", "audio/mpeg");
+      audioRes.pipe(cacheStream);
       audioRes.pipe(res);
+      audioRes.on("end", () => console.log(`Audio cached: ${cacheKey}`));
     });
 
     audioReq.setTimeout(30000, () => { audioReq.destroy(); res.status(504).json({ error: "Timeout" }); });
