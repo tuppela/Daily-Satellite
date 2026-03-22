@@ -1001,6 +1001,7 @@ document.getElementById("season-indicator").classList.add("visible");
   const seasonCatalogue = SATELLITE_CATALOGUE; // Show all satellites always
 
   document.getElementById("sat-count").textContent = `Fetching orbital data…`;
+  autoRotate = false; // Hold rotation until satellites are placed
   SATELLITES = await fetchLiveTLEs(seasonCatalogue);
   document.getElementById("sat-count").textContent = `${SATELLITES.length} objects tracked`;
   document.getElementById("sat-count").classList.add("visible");
@@ -1008,6 +1009,7 @@ document.getElementById("season-indicator").classList.add("visible");
   currentSatellites = SATELLITES;
   drawOrbitsAndDots(currentSatellites);
   setInterval(updateSatPositions, 15000);
+  autoRotate = true; // Resume rotation now satellites are visible
 
   setTimeout(() => initDailyCard(currentSatellites), 3500);
 })();
