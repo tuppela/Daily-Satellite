@@ -947,13 +947,16 @@ function flyToSatellite(sat) {
   });
 }
 
-// ─── GLOBE AUTO-ROTATE ───────────────────────────────────────────────────────
+// ─── GLOBE ROTATION at real Earth rate ───────────────────────────────────────
+// Earth completes one sidereal rotation in 86164 seconds
+const EARTH_ROTATION_RATE = (2 * Math.PI) / 86164;
+
 scene.postRender.addEventListener(() => {
   if (!autoRotate || viewer.trackedEntity) return;
   const now = Date.now();
   const delta = (now - lastTime) / 1000;
   lastTime = now;
-  viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.015 * delta);
+  viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -EARTH_ROTATION_RATE * delta);
 });
 
 viewer.scene.canvas.addEventListener("mousedown", () => { autoRotate = false; });
