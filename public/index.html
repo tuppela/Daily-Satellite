@@ -1125,6 +1125,13 @@ async function openPanel(sat) {
   panel.classList.remove("collapsed");
   panel.classList.add("visible");
 
+  // Disable listen until text loads
+  const listenBtn = document.getElementById("ctrl-listen");
+  listenBtn.textContent = "▶ Listen";
+  listenBtn.disabled = true;
+  listenBtn.style.opacity = "0.3";
+  listenBtn.style.cursor = "default";
+
   // Top fade only visible when scrolled
   const body = document.getElementById("panel-body");
   const fadeTop = document.getElementById("panel-fade-top");
@@ -1142,9 +1149,11 @@ async function openPanel(sat) {
     });
     const data = await res.json();
     if (data.text) {
-      // Split into paragraphs and render
       const paragraphs = data.text.split(/\n+/).filter(p => p.trim().length > 0);
       textEl.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join("");
+      listenBtn.disabled = false;
+      listenBtn.style.opacity = "1";
+      listenBtn.style.cursor = "pointer";
     } else {
       textEl.innerHTML = `<p style="font-style:italic;opacity:0.5">${data.error || "The archivist could not be reached."}</p>`;
     }

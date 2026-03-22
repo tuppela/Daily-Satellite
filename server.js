@@ -164,6 +164,10 @@ const crypto = require("crypto");
 const AUDIO_CACHE_DIR = path.join(__dirname, "audio-cache");
 if (!fs.existsSync(AUDIO_CACHE_DIR)) fs.mkdirSync(AUDIO_CACHE_DIR);
 
+// Clear bad Envisat cache on startup
+const badCache = path.join(AUDIO_CACHE_DIR, "envisat.mp3");
+if (fs.existsSync(badCache)) { fs.unlinkSync(badCache); console.log("Cleared bad Envisat cache"); }
+
 app.post("/api/narrate", async (req, res) => {
   const { text, satId } = req.body;
   if (!text) return res.status(400).json({ error: "Missing text" });
