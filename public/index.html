@@ -696,8 +696,8 @@ globe.showGroundAtmosphere = false;
 scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
 
 // Zoom limits — prevent going inside Earth or flipping upside down
-viewer.scene.screenSpaceCameraController.minimumZoomDistance = 500000;  // 500km above surface
-viewer.scene.screenSpaceCameraController.maximumZoomDistance = 35000000; // 35,000km — stays right-side up
+viewer.scene.screenSpaceCameraController.minimumZoomDistance = 200000;  // 200km above surface
+viewer.scene.screenSpaceCameraController.maximumZoomDistance = 35000000; // 35,000km
 
 // Remove default imagery and add Bing Maps Aerial
 viewer.imageryLayers.removeAll();
