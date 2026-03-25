@@ -215,12 +215,20 @@ app.post("/api/narrate", async (req, res) => {
         return;
       }
 
-      // Save to cache and stream to client simultaneously
-      const cacheStream = fs.createWriteStream(cachePath);
-      res.setHeader("Content-Type", "audio/mpeg");
-      audioRes.pipe(cacheStream);
-      audioRes.pipe(res);
-      audioRes.on("end", () => console.log(`Audio cached: ${cacheKey}`));
+      // Collect chunks, then serve and cache
+      const chunks = [];
+      audioRes.on("data", chunk => chunks.push(chunk));
+      audioRes.on("end", () => {
+        const buffer = Buffer.concat(chunks);
+        // Save to cache
+        fs.writeFile(cachePath, buffer, err => {
+          if (err) console.error("Cache write error:", err);
+          else console.log(`Audio cached: ${cacheKey}`);
+        });
+        // Serve to client
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.end(buffer);
+      });
     });
 
     audioReq.setTimeout(30000, () => { audioReq.destroy(); res.status(504).json({ error: "Timeout" }); });
