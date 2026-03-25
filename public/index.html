@@ -1024,15 +1024,23 @@ let narratorPlaying = false;
 async function toggleNarrator() {
   const btn = document.getElementById("ctrl-listen");
 
+  // If playing — pause
   if (narratorPlaying && narratorAudio) {
     narratorAudio.pause();
-    narratorAudio = null;
     narratorPlaying = false;
-    btn.textContent = "▶ Listen";
+    btn.textContent = "▶ Resume";
     return;
   }
 
-  // Get full text
+  // If paused — resume
+  if (!narratorPlaying && narratorAudio) {
+    narratorAudio.play();
+    narratorPlaying = true;
+    btn.textContent = "◼ Pause";
+    return;
+  }
+
+  // Fresh start
   const textEl = document.getElementById("panel-text-content");
   const text = textEl.innerText.trim();
   if (!text || text.includes("archivist is searching")) return;
@@ -1058,10 +1066,11 @@ async function toggleNarrator() {
     narratorAudio = new Audio(url);
     narratorAudio.play();
     narratorPlaying = true;
-    btn.textContent = "◼ Stop";
+    btn.textContent = "◼ Pause";
 
     narratorAudio.onended = () => {
       narratorPlaying = false;
+      narratorAudio = null;
       btn.textContent = "▶ Listen";
       URL.revokeObjectURL(url);
     };
