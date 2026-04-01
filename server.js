@@ -239,9 +239,19 @@ app.post("/api/narrate", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+const indexPath = path.join(__dirname, "public", "index.html");
+
+app.get("/", (req, res) => {
+  let html = require("fs").readFileSync(indexPath, "utf8");
+  const token = process.env.MAPBOX_TOKEN || "";
+  html = html.replace('window.MAPBOX_TOKEN || ""', `"${token}"`);
+  res.setHeader("Content-Type", "text/html");
+  res.send(html);
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {

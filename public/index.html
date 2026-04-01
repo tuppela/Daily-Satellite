@@ -609,7 +609,7 @@ function getTrailPoints(tle1, tle2, minutes = 20) {
 }
 
 // ─── MAPBOX INIT ─────────────────────────────────────────────────────────────
-mapboxgl.accessToken = "pk.eyJ1IjoidHVwcGVsYSIsImEiOiJjbW5mbHZtdjkwYjhlMnVzOTByb3JkbHV0In0.LfAioqKRoKK0VItt0DxN8w";
+mapboxgl.accessToken = window.MAPBOX_TOKEN || "";
 
 const map = new mapboxgl.Map({
   container: "map",
