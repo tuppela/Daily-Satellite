@@ -796,6 +796,11 @@ function addSatellite3DLayer() {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+      // Depth test against Mapbox's globe geometry — culls points behind Earth
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthMask(false);        // don't write to depth buffer (we're additive on top)
+      gl.depthFunc(gl.LEQUAL);    // pass if at or in front of existing depth
+
       // ── Trails: interleaved [x, y, z, fade,  x, y, z, fade, ...] ──────────
       if (satTrails3D.length > 0) {
         const STRIDE = 4; // floats per vertex
@@ -825,7 +830,11 @@ function addSatellite3DLayer() {
       }
 
       // ── Satellite dots ─────────────────────────────────────────────────────
-      if (!satPositions3D.length) return;
+      if (!satPositions3D.length) {
+        gl.depthMask(true);
+        gl.disable(gl.DEPTH_TEST);
+        return;
+      }
 
       const dotData = new Float32Array(satPositions3D.length * 3);
       satPositions3D.forEach((p, i) => {
@@ -844,6 +853,10 @@ function addSatellite3DLayer() {
       gl.vertexAttribPointer(this.dot_aPos, 3, gl.FLOAT, false, 0, 0);
       gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
       gl.drawArrays(gl.POINTS, 0, satPositions3D.length);
+
+      // Restore GL state for Mapbox
+      gl.depthMask(true);
+      gl.disable(gl.DEPTH_TEST);
     }
   };
 
