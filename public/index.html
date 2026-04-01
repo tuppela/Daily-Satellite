@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Orbital Register</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Daily Satellite</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Instrument+Serif:ital@0;1&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Source+Code+Pro:wght@300;400;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Instrument+Serif:ital@0;1&family=Source+Code+Pro:wght@300;400;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
 
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.css" rel="stylesheet" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
   <style>
@@ -20,11 +20,10 @@
       --ink: #1a1610;
       --ink-mid: rgba(26,22,16,0.35);
       --ink-faint: rgba(26,22,16,0.12);
-      --ink-ghost: rgba(26,22,16,0.06);
-      --parchment: #ede6d6;
       --serif: 'IM Fell English', Georgia, serif;
       --serif-sc: 'IM Fell English SC', Georgia, serif;
       --mono: 'Courier Prime', 'Courier New', monospace;
+      --sc: 'Source Code Pro', 'Courier New', monospace;
     }
 
     html, body {
@@ -35,69 +34,34 @@
       color: var(--ink);
     }
 
-    /* Cesium container */
-    #cesium-container {
+    #map {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: var(--bg);
     }
 
-    /* Force cesium canvas to fill container */
-    #cesium-container canvas {
-      width: 100% !important;
-      height: 100% !important;
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
+    /* Hide Mapbox logo */
+    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
+    .mapboxgl-canvas { outline: none; }
 
-    .cesium-viewer,
-    .cesium-viewer-cesiumWidgetContainer,
-    .cesium-widget,
-    .cesium-widget canvas {
-      width: 100% !important;
-      height: 100% !important;
-    }
-
-    /* Hide ALL Cesium UI chrome */
-    .cesium-widget-credits,
-    .cesium-viewer-toolbar,
-    .cesium-viewer-animationContainer,
-    .cesium-viewer-timelineContainer,
-    .cesium-viewer-bottom,
-    .cesium-viewer-fullscreenContainer,
-    .cesium-viewer-geocoderContainer,
-    .cesium-viewer-navigationHelpButtonContainer,
-    .cesium-viewer-infoBoxContainer,
-    .cesium-viewer-selectionIndicatorContainer,
-    .cesium-navigationInstructionInitial,
-    .cesium-credit-logoContainer,
-    .cesium-credit-textContainer {
-      display: none !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-
-    /* Grain overlay for warmth */
+    /* Grain overlay */
     #grain {
       position: fixed;
-      inset: 0;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       pointer-events: none;
       z-index: 10;
       opacity: 0.028;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-      background-size: 128px 128px;
     }
 
-    /* Header — masthead */
+    /* Masthead */
     #masthead {
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 50;
-      padding: 14px 32px;
+      padding: 12px 32px;
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
@@ -116,7 +80,7 @@
     }
 
     #masthead-vol {
-      font-family: var(--mono);
+      font-family: var(--sc);
       font-size: 8px;
       letter-spacing: 0.3em;
       text-transform: uppercase;
@@ -133,120 +97,35 @@
     }
 
     #masthead-right {
-      font-family: var(--mono);
+      font-family: var(--sc);
       font-size: 8px;
       letter-spacing: 0.2em;
       text-transform: uppercase;
       opacity: 0.35;
       text-align: right;
       line-height: 1.7;
-      pointer-events: none;
     }
 
-    /* Daily Satellite card */
-    #daily-card {
-      position: fixed;
-      bottom: 52px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      z-index: 60;
-      width: 280px;
-      border: 1px solid var(--ink);
-      background: var(--bg);
-      padding: 20px 24px 18px;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.8s ease, transform 0.8s ease, box-shadow 0.3s ease;
-    }
-    #daily-card.visible {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-    #daily-card:hover {
-      box-shadow: 3px 3px 0 var(--ink);
-    }
-
-    #daily-card-issue {
-      font-family: var(--mono);
-      font-size: 8px;
-      letter-spacing: 0.35em;
-      text-transform: uppercase;
-      opacity: 0.4;
-      margin-bottom: 8px;
-    }
-
-    #daily-card-name {
-      font-family: var(--serif-sc);
-      font-size: 19px;
-      line-height: 1.2;
-      margin-bottom: 6px;
-    }
-
-    #daily-card-desc {
-      font-family: var(--serif);
-      font-style: italic;
-      font-size: 12px;
-      opacity: 0.6;
-      line-height: 1.5;
-      margin-bottom: 14px;
-    }
-
-    #daily-card-cta {
-      font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      opacity: 0.5;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    #daily-card-cta::after {
-      content: '→';
-      font-family: var(--serif);
-      font-size: 14px;
-      opacity: 0.7;
-    }
-
-    /* Hover tooltip for satellites */
+    /* Satellite tooltip */
     #sat-tooltip {
       position: fixed;
-      z-index: 70;
+      z-index: 60;
+      background: var(--bg);
+      border: 1px solid var(--ink-faint);
+      padding: 6px 12px;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.2s ease;
-      transform: translateX(-50%);
+      transition: opacity 0.15s;
     }
     #sat-tooltip.visible { opacity: 1; }
     #sat-tooltip-name {
-      font-family: var(--mono);
+      font-family: var(--sc);
       font-size: 9px;
+      font-weight: 700;
       letter-spacing: 0.2em;
       text-transform: uppercase;
       color: var(--ink);
-      white-space: nowrap;
-      background: var(--bg);
-      padding: 3px 8px;
-      border: 1px solid var(--ink-mid);
     }
-
-    /* Season indicator */
-    #season-indicator {
-      position: fixed;
-      bottom: 24px;
-      right: 32px;
-      z-index: 50;
-      font-family: var(--mono);
-      font-size: 8px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      opacity: 0;
-      color: var(--ink);
-      transition: opacity 1s ease;
-      text-align: right;
-      line-height: 1.8;
-    }
-    #season-indicator.visible { opacity: 0.3; }
 
     /* Sat count */
     #sat-count {
@@ -263,9 +142,80 @@
     }
     #sat-count.visible { opacity: 0.3; }
 
-    /* ─── INFO PANEL ──────────────────────────────────────────────────────── */
+    /* Season indicator */
+    #season-indicator {
+      position: fixed;
+      bottom: 24px;
+      right: 32px;
+      z-index: 50;
+      font-family: var(--sc);
+      font-size: 8px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0;
+      color: var(--ink);
+      transition: opacity 1s ease;
+      text-align: right;
+    }
+    #season-indicator.visible { opacity: 0.3; }
+
+    /* Daily card */
+    #daily-card {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      z-index: 60;
+      background: var(--bg);
+      border: 1px solid var(--ink-faint);
+      padding: 24px 28px;
+      width: min(340px, 88vw);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease, transform 0.8s ease;
+      cursor: pointer;
+    }
+    #daily-card.visible {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateX(-50%) translateY(0);
+    }
+    #daily-card-issue {
+      font-family: var(--sc);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0.4;
+      margin-bottom: 8px;
+    }
+    #daily-card-name {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+    #daily-card-desc {
+      font-family: var(--serif);
+      font-size: 13px;
+      font-style: italic;
+      opacity: 0.65;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    #daily-card-cta {
+      font-family: var(--sc);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0.45;
+    }
+    #daily-card:hover #daily-card-cta { opacity: 0.8; }
+
+    /* ─── INFO PANEL ── */
     :root {
-      --sc: 'Source Code Pro', 'Courier New', monospace;
       --panel-bg: rgb(238, 233, 221);
       --panel-border: rgba(26, 22, 16, 0.14);
       --panel-ink: rgba(26, 22, 16, 0.88);
@@ -289,14 +239,12 @@
       pointer-events: none;
       transition: opacity 0.5s ease, transform 0.5s ease;
     }
-
     #info-panel.visible {
       opacity: 1;
       pointer-events: all;
       transform: translate(-50%, -50%) scale(1);
     }
 
-    /* ── Header bar — no border, tight ── */
     #panel-header {
       display: flex;
       align-items: center;
@@ -304,7 +252,6 @@
       padding: 18px 44px 16px;
       flex-shrink: 0;
     }
-
     #panel-sat-type {
       font-family: var(--sc);
       font-size: 10px;
@@ -313,12 +260,7 @@
       text-transform: uppercase;
       color: var(--panel-faint);
     }
-
-    #panel-header-controls {
-      display: flex;
-      gap: 28px;
-    }
-
+    #panel-header-controls { display: flex; gap: 28px; }
     .panel-ctrl {
       font-family: var(--sc);
       font-size: 10px;
@@ -333,13 +275,12 @@
       transition: color 0.2s;
     }
     .panel-ctrl:hover { color: var(--panel-ink); }
+    .panel-ctrl:disabled { opacity: 0.3; cursor: default; }
 
-    /* ── Satellite name — full width ── */
     #panel-name-row {
       padding: 0 44px 20px;
       flex-shrink: 0;
     }
-
     #panel-sat-name {
       font-family: 'Libre Baskerville', Georgia, serif;
       font-size: 52px;
@@ -349,7 +290,6 @@
       line-height: 1.0;
     }
 
-    /* ── Two column: agency+text left, data right ── */
     #panel-columns {
       display: grid;
       grid-template-columns: 58% 42%;
@@ -359,13 +299,11 @@
       gap: 0 32px;
     }
 
-    /* Left column */
     #panel-left {
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
-
     #panel-sat-agency {
       font-family: var(--sc);
       font-size: 10px;
@@ -377,7 +315,6 @@
       padding-bottom: 28px;
     }
 
-    /* Scrollable text */
     #panel-body {
       flex: 1;
       overflow-y: auto;
@@ -397,7 +334,6 @@
       opacity: 0;
       transition: opacity 0.3s;
     }
-
     #panel-fade-bottom {
       position: sticky;
       bottom: 0;
@@ -415,15 +351,8 @@
       color: var(--panel-ink);
       padding-bottom: 80px;
     }
-
     #panel-text-content p { margin-bottom: 18px; }
     #panel-text-content p:last-child { margin-bottom: 0; }
-
-    .panel-illustration {
-      width: 100%;
-      margin: 24px 0;
-      opacity: 0.75;
-    }
 
     #panel-loading {
       font-family: var(--sc);
@@ -434,12 +363,10 @@
       color: var(--panel-faint);
       padding-top: 4px;
     }
-
     #panel-loading::after {
       content: '';
       animation: dots 1.5s steps(4, end) infinite;
     }
-
     @keyframes dots {
       0%, 20% { content: ''; }
       40% { content: '.'; }
@@ -447,11 +374,7 @@
       80%, 100% { content: '...'; }
     }
 
-    /* Right column — data table */
-    #panel-right {
-      padding-top: 0;
-    }
-
+    #panel-right { padding-top: 0; }
     .panel-data-row {
       display: flex;
       justify-content: space-between;
@@ -459,7 +382,6 @@
       padding: 9px 0;
       border-bottom: 1px solid var(--panel-ghost);
     }
-
     .panel-data-key {
       font-family: var(--sc);
       font-size: 10px;
@@ -468,7 +390,6 @@
       text-transform: uppercase;
       color: var(--panel-faint);
     }
-
     .panel-data-val {
       font-family: var(--sc);
       font-size: 12px;
@@ -478,43 +399,36 @@
       text-align: right;
     }
 
-    /* Collapsed bar */
     #info-panel.collapsed {
-      top: auto;
-      bottom: 24px;
+      top: auto; bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
       width: min(420px, 90vw);
       height: auto;
     }
-
     #info-panel.collapsed #panel-name-row,
-    #info-panel.collapsed #panel-columns {
-      display: none;
-    }      display: none;
-    }
+    #info-panel.collapsed #panel-columns { display: none; }
 
     #collapsed-label {
       font-family: var(--sc);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--panel-faint);
     }
-
   </style>
 </head>
 <body>
 
-<div id="cesium-container"></div>
+<div id="map"></div>
 <div id="grain"></div>
 
 <div id="masthead">
   <div id="masthead-left">
     <span id="masthead-vol">Vol. I</span>
-    <span id="masthead-title">Daily Satellite</span>
   </div>
+  <span id="masthead-title">Daily Satellite</span>
   <div id="masthead-right">
     <div id="clock"></div>
     <div id="season-label"></div>
@@ -525,19 +439,18 @@
   <div id="daily-card-issue"></div>
   <div id="daily-card-name"></div>
   <div id="daily-card-desc"></div>
-  <div id="daily-card-cta">Open today's entry</div>
+  <div id="daily-card-cta">Open today's entry →</div>
 </div>
 
 <div id="sat-tooltip">
   <div id="sat-tooltip-name"></div>
 </div>
 
-<div id="season-indicator"></div>
 <div id="sat-count"></div>
+<div id="season-indicator"></div>
 
-<!-- ─── INFO PANEL ─────────────────────────────────────────────────────── -->
+<!-- INFO PANEL -->
 <div id="info-panel">
-  <!-- Header: type left, controls right, no border -->
   <div id="panel-header">
     <div id="panel-sat-type">◆ Loading</div>
     <div id="panel-header-controls">
@@ -546,13 +459,9 @@
       <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">Close</button>
     </div>
   </div>
-
-  <!-- Satellite name — full width -->
   <div id="panel-name-row">
     <div id="panel-sat-name">—</div>
   </div>
-
-  <!-- Two columns: left = agency + text, right = data -->
   <div id="panel-columns">
     <div id="panel-left">
       <div id="panel-sat-agency"></div>
@@ -571,7 +480,7 @@
 </div>
 
 <script>
-// ─── SATELLITE CATALOGUE — real NORAD IDs, TLEs fetched live ─────────────────
+// ─── SATELLITE CATALOGUE ──────────────────────────────────────────────────────
 const SATELLITE_CATALOGUE = [
   { id: "iss",          name: "ISS",                    norad: 25544, desc: "The International Space Station. 400km above, always occupied since 2000." },
   { id: "tiangong",     name: "Tiangong CSS",            norad: 48274, desc: "China's national space station. A new permanence in orbit." },
@@ -594,495 +503,6 @@ const SATELLITE_CATALOGUE = [
   { id: "galileo-5",    name: "Galileo-5",               norad: 37846, desc: "Europe's answer to GPS. A political act dressed as infrastructure." },
   { id: "envisat",      name: "Envisat",                 norad: 27386, desc: "ESA's largest Earth observation satellite. Went silent in 2012. Still orbiting." },
 ];
-
-// Active satellite list — populated after TLE fetch
-let SATELLITES = [];
-
-// ─── LIVE TLE FETCH ───────────────────────────────────────────────────────────
-async function fetchLiveTLEs(catalogue) {
-  // Fetch in small parallel batches to avoid overwhelming the server
-  const results = [];
-  const batchSize = 3;
-  for (let i = 0; i < catalogue.length; i += batchSize) {
-    const batch = catalogue.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(async sat => {
-      try {
-        const res = await fetch(`/api/tle/${sat.norad}`);
-        if (!res.ok) { console.warn(`TLE ${sat.name}: HTTP ${res.status}`); return null; }
-        const data = await res.json();
-        if (data.l1 && data.l2) return { ...sat, l1: data.l1, l2: data.l2 };
-        return null;
-      } catch(e) {
-        console.warn(`TLE failed: ${sat.name}`, e.message);
-        return null;
-      }
-    }));
-    results.push(...batchResults.filter(Boolean));
-    // Small pause between batches
-    if (i + batchSize < catalogue.length) {
-      await new Promise(r => setTimeout(r, 300));
-    }
-  }
-  console.log(`Loaded ${results.length}/${catalogue.length} TLEs`);
-  return results;
-}
-// ─── SEASON LOGIC ────────────────────────────────────────────────────────────
-function getCurrentSeason() {
-  const month = new Date().getMonth(); // 0-11
-  if (month >= 2 && month <= 4) return { name: "Spring", theme: "The Watchers", key: "spring" };
-  if (month >= 5 && month <= 7) return { name: "Summer", theme: "The Scientists", key: "summer" };
-  if (month >= 8 && month <= 10) return { name: "Autumn", theme: "The Accidents", key: "autumn" };
-  return { name: "Winter", theme: "The Forgotten", key: "winter" };
-}
-
-function getSeasonSatellites(seasonKey) {
-  return SATELLITES.filter(s => s.season === seasonKey || s.season === "all");
-}
-
-// ─── DAILY SATELLITE ─────────────────────────────────────────────────────────
-function getDailySatellite(satellites) {
-  const LAUNCH_DATE = new Date("2025-04-01");
-  const today = new Date();
-  const daysSinceLaunch = Math.floor((today - LAUNCH_DATE) / (1000 * 60 * 60 * 24));
-  const issueNum = Math.max(1, daysSinceLaunch + 1);
-  // Always start with ISS for now so the movement is dramatic on first load
-  const iss = satellites.find(s => s.id === "iss");
-  if (iss) return { satellite: iss, issueNum };
-  const idx = daysSinceLaunch % satellites.length;
-  return { satellite: satellites[Math.abs(idx)], issueNum };
-}
-
-// ─── CLOCK ───────────────────────────────────────────────────────────────────
-function updateClock() {
-  const now = new Date();
-  const utc = now.toUTCString().replace("GMT", "UTC");
-  document.getElementById("clock").textContent = utc;
-}
-
-// ─── CESIUM INIT ─────────────────────────────────────────────────────────────
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2MjkxMTA5My03ZGQxLTQ4NTgtYmJmMC0yNmYxYjU4MDgwMjEiLCJpZCI6NDA1ODA1LCJpYXQiOjE3NzM5MjAxMTV9.pm6OrxaqD9py-W5nWXurKF7fvLKF87J2Gv1xpHM-LPQ";
-
-// Ensure container fills screen before Cesium init
-const cesiumContainer = document.getElementById("cesium-container");
-cesiumContainer.style.width = window.innerWidth + "px";
-cesiumContainer.style.height = window.innerHeight + "px";
-
-const viewer = new Cesium.Viewer("cesium-container", {
-  baseLayerPicker: false,
-  animation: false,
-  baseLayerPicker: false,
-  fullscreenButton: false,
-  geocoder: false,
-  homeButton: false,
-  infoBox: false,
-  sceneModePicker: false,
-  selectionIndicator: false,
-  timeline: false,
-  navigationHelpButton: false,
-  navigationInstructionInitiallyVisible: false,
-  creditContainer: document.createElement("div"),
-  skyBox: false,
-  skyAtmosphere: false,
-  scene3DOnly: true,
-  requestRenderMode: false,
-});
-
-// Scene settings
-const scene = viewer.scene;
-const globe = scene.globe;
-
-globe.enableLighting = false;
-globe.showGroundAtmosphere = false;
-scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
-
-// Zoom limits — prevent going inside Earth or flipping upside down
-viewer.scene.screenSpaceCameraController.minimumZoomDistance = 200000;  // 200km above surface
-viewer.scene.screenSpaceCameraController.maximumZoomDistance = 35000000; // 35,000km
-
-// Remove default imagery and add Bing Maps Aerial
-viewer.imageryLayers.removeAll();
-Cesium.IonImageryProvider.fromAssetId(2).then(provider => {
-  viewer.imageryLayers.addImageryProvider(provider);
-  console.log("Bing imagery loaded");
-}).catch(err => {
-  console.error("Bing imagery failed:", err);
-});
-scene.moon = undefined;
-
-// Remove stars
-try { scene.skyBox = undefined; } catch(e) {}
-try { scene.skyAtmosphere = undefined; } catch(e) {}
-try { scene.sun = new Cesium.Sun(); scene.sun.show = false; } catch(e) {}
-
-// Background color to match parchment
-viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#f0ebe0");
-
-// Initial camera — whole Earth visible, pulled well back
-viewer.camera.setView({
-  destination: Cesium.Cartesian3.fromDegrees(10.0, 25.0, 28000000),
-  orientation: {
-    heading: 0,
-    pitch: Cesium.Math.toRadians(-90),
-    roll: 0,
-  }
-});
-
-// Re-apply after a frame to make sure it sticks
-setTimeout(() => {
-  if (!viewer.trackedEntity) {
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(10.0, 25.0, 28000000),
-      orientation: {
-        heading: 0,
-        pitch: Cesium.Math.toRadians(-90),
-        roll: 0,
-      }
-    });
-    viewer.resize();
-  }
-}, 500);
-
-// ─── ORBIT DRAWING ───────────────────────────────────────────────────────────
-function propagateSatellite(tle1, tle2, date) {
-  try {
-    const satrec = satellite.twoline2satrec(tle1, tle2);
-    const posVel = satellite.propagate(satrec, date);
-    if (!posVel.position) return null;
-    const gmst = satellite.gstime(date);
-    const geo = satellite.eciToGeodetic(posVel.position, gmst);
-    return {
-      lat: satellite.degreesLat(geo.latitude),
-      lon: satellite.degreesLong(geo.longitude),
-      alt: geo.height * 1000,
-    };
-  } catch(e) { return null; }
-}
-
-// Draw all satellite dots using SampledPositionProperty driven by Cesium clock
-const satDots = [];
-let selectedOrbitEntity = null;
-
-function buildSampledPosition(sat) {
-  const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
-  const periodMinutes = 1440 / satrec.no;
-  const periodMs = periodMinutes * 60 * 1000;
-  const now = new Date();
-  const sampledPos = new Cesium.SampledPositionProperty();
-
-  // Sample 3 full orbits centred on now — past and future
-  const steps = 180;
-  for (let i = -steps; i <= steps; i++) {
-    const t = new Date(now.getTime() + (i / steps) * 3 * periodMs);
-    const c = getSatCartesian(sat.l1, sat.l2, t);
-    if (c) sampledPos.addSample(Cesium.JulianDate.fromDate(t), c);
-  }
-
-  sampledPos.setInterpolationOptions({
-    interpolationDegree: 5,
-    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
-  });
-  return sampledPos;
-}
-
-function drawOrbitsAndDots(satellites) {
-  // Set Cesium clock to current time
-  viewer.clock.currentTime = Cesium.JulianDate.now();
-  viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
-  viewer.clock.multiplier = 1;
-  viewer.clock.shouldAnimate = true;
-
-  satellites.forEach((sat, idx) => {
-    const sampledPos = buildSampledPosition(sat);
-
-    const dotEntity = viewer.entities.add({
-      position: sampledPos,
-      point: {
-        pixelSize: 5,
-        color: Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)"),
-        outlineColor: Cesium.Color.TRANSPARENT,
-        outlineWidth: 0,
-      },
-      label: { show: false },
-      path: { show: false },
-      properties: {
-        satId: sat.id,
-        satName: sat.name,
-        satDesc: sat.desc,
-        satIdx: idx,
-      },
-    });
-    satDots.push({ entity: dotEntity, sat, idx, sampledPos });
-  });
-}
-
-// Get satellite position as ECEF Cartesian3 directly
-function getSatCartesian(tle1, tle2, date) {
-  try {
-    const satrec = satellite.twoline2satrec(tle1, tle2);
-    const posVel = satellite.propagate(satrec, date);
-    if (!posVel.position) return null;
-    const gmst = satellite.gstime(date);
-    // Rotate ECI to ECEF directly
-    const cosG = Math.cos(gmst), sinG = Math.sin(gmst);
-    const x = posVel.position.x * cosG + posVel.position.y * sinG;
-    const y = -posVel.position.x * sinG + posVel.position.y * cosG;
-    const z = posVel.position.z;
-    // satellite.js gives km, Cesium needs metres
-    return new Cesium.Cartesian3(x * 1000, y * 1000, z * 1000);
-  } catch(e) { return null; }
-}
-
-// Track trail entities
-const trailEntities = [];
-
-// No trail for now — just fly to satellite
-function drawSelectedOrbit(sat) {
-  // Remove any previous paths
-  trailEntities.forEach(e => { if (e.path) e.path.show = false; });
-  trailEntities.length = 0;
-}
-
-// ─── REAL-TIME POSITION UPDATE ───────────────────────────────────────────────
-// SampledPositionProperty driven by Cesium clock — no manual updates needed
-function updateSatPositions() {}
-
-// ─── HOVER DETECTION ─────────────────────────────────────────────────────────
-const tooltip = document.getElementById("sat-tooltip");
-const tooltipName = document.getElementById("sat-tooltip-name");
-let hoveredEntity = null;
-
-const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-handler.setInputAction((movement) => {
-  const pickedObject = scene.pick(movement.endPosition);
-  
-  if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
-    const entity = pickedObject.id;
-    const props = entity.properties;
-    
-    if (props && Cesium.defined(props.satName)) {
-      const name = props.satName.getValue();
-      tooltipName.textContent = name;
-      tooltip.style.left = movement.endPosition.x + "px";
-      tooltip.style.top = (movement.endPosition.y - 36) + "px";
-      tooltip.style.transform = "translateX(-50%)";
-      tooltip.classList.add("visible");
-      
-      // Enlarge dot on hover
-      if (hoveredEntity !== entity) {
-        if (hoveredEntity) {
-          hoveredEntity.point.pixelSize = 5;
-          hoveredEntity.point.color = Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)");
-        }
-        entity.point.pixelSize = 10;
-        entity.point.color = Cesium.Color.fromCssColorString("rgba(26,22,16,1.0)");
-        hoveredEntity = entity;
-      }
-      
-      viewer.scene.canvas.style.cursor = "crosshair";
-      return;
-    }
-  }
-  
-  tooltip.classList.remove("visible");
-  if (hoveredEntity) {
-    hoveredEntity.point.pixelSize = 5;
-    hoveredEntity.point.color = Cesium.Color.fromCssColorString("rgba(26,22,16,0.9)");
-    hoveredEntity = null;
-  }
-  viewer.scene.canvas.style.cursor = "default";
-  
-}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-// ─── CLICK HANDLER ───────────────────────────────────────────────────────────
-handler.setInputAction((click) => {
-  const pickedObject = scene.pick(click.position);
-  
-  if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
-    const entity = pickedObject.id;
-    const props = entity.properties;
-    
-    if (props && Cesium.defined(props.satName)) {
-      const satIdx = props.satIdx.getValue();
-      const sat = currentSatellites[satIdx];
-      
-      // Hide daily card
-      document.getElementById("daily-card").classList.remove("visible");
-
-      // Open info panel and fly to satellite simultaneously
-      openPanel(sat);
-      flyToSatellite(sat);
-      return;
-    }
-  }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-// ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
-let trackedSat = null;
-let autoRotate = true;
-let lastTime = Date.now();
-
-function flyToSatellite(sat) {
-  const found = satDots.find(d => d.sat.id === sat.id);
-  if (!found) return;
-
-  autoRotate = false;
-  viewer.trackedEntity = undefined;
-
-  const pos = propagateSatellite(sat.l1, sat.l2, new Date());
-  if (!pos) return;
-
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + 5000),
-    orientation: {
-      heading: Cesium.Math.toRadians(0),
-      pitch: Cesium.Math.toRadians(-90),
-      roll: 0,
-    },
-    duration: 2.5,
-    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
-    complete: () => {
-      viewer.trackedEntity = found.entity;
-    }
-  });
-}
-
-// ─── GLOBE ROTATION at real Earth rate ───────────────────────────────────────
-// Earth completes one sidereal rotation in 86164 seconds
-const EARTH_ROTATION_RATE = (2 * Math.PI) / 86164;
-
-scene.postRender.addEventListener(() => {
-  if (!autoRotate || viewer.trackedEntity) return;
-  const now = Date.now();
-  const delta = (now - lastTime) / 1000;
-  lastTime = now;
-  viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -EARTH_ROTATION_RATE * delta);
-});
-
-viewer.scene.canvas.addEventListener("mousedown", () => { autoRotate = false; });
-viewer.scene.canvas.addEventListener("touchstart", () => { autoRotate = false; });
-
-// ─── DAILY CARD ───────────────────────────────────────────────────────────────
-let currentSatellites = [];
-
-function initDailyCard(satellites) {
-  if (!satellites || satellites.length === 0) return;
-  const { satellite: daily, issueNum } = getDailySatellite(satellites);
-  
-  document.getElementById("daily-card-issue").textContent = `Issue No. ${issueNum} — Daily Satellite`;
-  document.getElementById("daily-card-name").textContent = daily.name;
-  document.getElementById("daily-card-desc").textContent = daily.desc;
-  
-  document.getElementById("daily-card").addEventListener("click", () => {
-    document.getElementById("daily-card").classList.remove("visible");
-    openPanel(daily);
-    flyToSatellite(daily);
-  });
-  
-  // Show card after 3.5s breath
-  setTimeout(() => {
-    document.getElementById("daily-card").classList.add("visible");
-  }, 3500);
-}
-
-// ─── BOOT SEQUENCE ────────────────────────────────────────────────────────────
-const season = getCurrentSeason();
-document.getElementById("season-indicator").textContent = `${season.name} — ${season.theme}`;
-document.getElementById("season-label").textContent = season.theme;
-
-updateClock();
-setInterval(updateClock, 1000);
-
-viewer.resize();
-viewer.scene.requestRender();
-
-document.getElementById("masthead").classList.add("visible");
-document.getElementById("season-indicator").classList.add("visible");
-
-// Fetch live TLEs then boot
-(async () => {
-  const seasonCatalogue = SATELLITE_CATALOGUE; // Show all satellites always
-
-  document.getElementById("sat-count").textContent = `Fetching orbital data…`;
-  autoRotate = false; // Hold rotation until satellites are placed
-  SATELLITES = await fetchLiveTLEs(seasonCatalogue);
-  document.getElementById("sat-count").textContent = `${SATELLITES.length} objects tracked`;
-  document.getElementById("sat-count").classList.add("visible");
-
-  currentSatellites = SATELLITES;
-  drawOrbitsAndDots(currentSatellites);
-  setInterval(updateSatPositions, 15000);
-  autoRotate = true; // Resume rotation now satellites are visible
-
-  setTimeout(() => initDailyCard(currentSatellites), 3500);
-})();
-
-// ─── NARRATOR ────────────────────────────────────────────────────────────────
-let narratorAudio = null;
-let narratorPlaying = false;
-
-async function toggleNarrator() {
-  const btn = document.getElementById("ctrl-listen");
-
-  // If playing — pause
-  if (narratorPlaying && narratorAudio) {
-    narratorAudio.pause();
-    narratorPlaying = false;
-    btn.textContent = "▶ Resume";
-    return;
-  }
-
-  // If paused — resume
-  if (!narratorPlaying && narratorAudio) {
-    narratorAudio.play();
-    narratorPlaying = true;
-    btn.textContent = "◼ Pause";
-    return;
-  }
-
-  // Fresh start
-  const textEl = document.getElementById("panel-text-content");
-  const text = textEl.innerText.trim();
-  if (!text || text.includes("archivist is searching")) return;
-
-  btn.textContent = "… Loading";
-
-  try {
-    const res = await fetch("/api/narrate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, satId: currentPanelSat?.id })
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      btn.textContent = `✕ ${err.error || res.status}`;
-      setTimeout(() => btn.textContent = "▶ Listen", 4000);
-      return;
-    }
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    narratorAudio = new Audio(url);
-    narratorAudio.play();
-    narratorPlaying = true;
-    btn.textContent = "◼ Pause";
-
-    narratorAudio.onended = () => {
-      narratorPlaying = false;
-      narratorAudio = null;
-      btn.textContent = "▶ Listen";
-      URL.revokeObjectURL(url);
-    };
-  } catch(e) {
-    btn.textContent = `✕ ${e.message}`;
-    setTimeout(() => btn.textContent = "▶ Listen", 4000);
-  }
-}
-
-
-let panelCollapsed = false;
-let currentPanelSat = null;
 
 const SAT_DETAILS = {
   "iss":         { type: "Space Station",    agency: "NASA / Roscosmos / ESA / JAXA / CSA", alt: "~408 km", inc: "51.6°", period: "92.9 min", launched: "1998-11-20" },
@@ -1107,19 +527,310 @@ const SAT_DETAILS = {
   "envisat":     { type: "Earth Observation",agency: "ESA", alt: "~790 km", inc: "98.5°", period: "100.6 min", launched: "2002-03-01" },
 };
 
+let SATELLITES = [];
+let currentSatellites = [];
+let currentPanelSat = null;
+let narratorAudio = null;
+let narratorPlaying = false;
+
+// ─── TLE FETCH ────────────────────────────────────────────────────────────────
+async function fetchLiveTLEs(catalogue) {
+  const results = [];
+  const batchSize = 3;
+  for (let i = 0; i < catalogue.length; i += batchSize) {
+    const batch = catalogue.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(async sat => {
+      try {
+        const res = await fetch(`/api/tle/${sat.norad}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.l1 && data.l2) return { ...sat, l1: data.l1, l2: data.l2 };
+        return null;
+      } catch(e) { return null; }
+    }));
+    results.push(...batchResults.filter(Boolean));
+    if (i + batchSize < catalogue.length) await new Promise(r => setTimeout(r, 300));
+  }
+  return results;
+}
+
+// ─── SEASON / DAILY ──────────────────────────────────────────────────────────
+function getCurrentSeason() {
+  const m = new Date().getMonth();
+  if (m >= 2 && m <= 4) return { name: "Spring", theme: "The Watchers", key: "spring" };
+  if (m >= 5 && m <= 7) return { name: "Summer", theme: "The Scientists", key: "summer" };
+  if (m >= 8 && m <= 10) return { name: "Autumn", theme: "The Accidents", key: "autumn" };
+  return { name: "Winter", theme: "The Forgotten", key: "winter" };
+}
+
+function getDailySatellite(satellites) {
+  const LAUNCH_DATE = new Date("2025-04-01");
+  const today = new Date();
+  const daysSinceLaunch = Math.floor((today - LAUNCH_DATE) / (1000 * 60 * 60 * 24));
+  const issueNum = Math.max(1, daysSinceLaunch + 1);
+  const iss = satellites.find(s => s.id === "iss");
+  if (iss) return { satellite: iss, issueNum };
+  return { satellite: satellites[Math.abs(daysSinceLaunch % satellites.length)], issueNum };
+}
+
+// ─── CLOCK ───────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent = now.toUTCString().replace("GMT", "UTC");
+}
+
+// ─── SATELLITE PROPAGATION ───────────────────────────────────────────────────
+function propagateSatellite(tle1, tle2, date) {
+  try {
+    const satrec = satellite.twoline2satrec(tle1, tle2);
+    const posVel = satellite.propagate(satrec, date);
+    if (!posVel.position) return null;
+    const gmst = satellite.gstime(date);
+    const geo = satellite.eciToGeodetic(posVel.position, gmst);
+    return {
+      lat: satellite.degreesLat(geo.latitude),
+      lon: satellite.degreesLong(geo.longitude),
+      alt: geo.height,
+    };
+  } catch(e) { return null; }
+}
+
+// Get trail points — past N minutes
+function getTrailPoints(tle1, tle2, minutes = 20) {
+  const points = [];
+  const now = Date.now();
+  const steps = 60;
+  for (let i = steps; i >= 0; i--) {
+    const t = new Date(now - (i / steps) * minutes * 60 * 1000);
+    const pos = propagateSatellite(tle1, tle2, t);
+    if (pos) points.push([pos.lon, pos.lat]);
+  }
+  return points;
+}
+
+// ─── MAPBOX INIT ─────────────────────────────────────────────────────────────
+mapboxgl.accessToken = "pk.eyJ1IjoidHVwcGVsYSIsImEiOiJjbW5mbHZtdjkwYjhlMnVzOTByb3JkbHV0In0.LfAioqKRoKK0VItt0DxN8w";
+
+const map = new mapboxgl.Map({
+  container: "map",
+  style: "mapbox://styles/mapbox/satellite-v9",
+  projection: "globe",
+  zoom: 1.8,
+  center: [10, 25],
+  pitch: 0,
+  bearing: 0,
+  minZoom: 0.5,
+  maxZoom: 18,
+  attributionControl: false,
+  logoPosition: "bottom-left",
+});
+
+// Colour grading to match Cesium/Bing warmth
+map.on("style.load", () => {
+  // Warm, slightly desaturated — matches Bing aerial character
+  map.setPaintProperty("satellite", "raster-saturation", -0.12);
+  map.setPaintProperty("satellite", "raster-contrast", -0.04);
+  map.setPaintProperty("satellite", "raster-brightness-min", 0.02);
+  map.setPaintProperty("satellite", "raster-hue-rotate", 6);
+
+  // Parchment fog/atmosphere
+  map.setFog({
+    color: "#f0ebe0",
+    "high-color": "#c8bfb0",
+    "horizon-blend": 0.08,
+    "space-color": "#f0ebe0",
+    "star-intensity": 0,
+  });
+
+  initSatelliteLayers();
+});
+
+// ─── AUTO-ROTATION ────────────────────────────────────────────────────────────
+let autoRotate = true;
+let isTracking = false;
+let trackedSatId = null;
+const EARTH_DEG_PER_SEC = 360 / 86164;
+let lastRotateTime = Date.now();
+
+function rotationLoop() {
+  if (autoRotate && !isTracking) {
+    const now = Date.now();
+    const delta = (now - lastRotateTime) / 1000;
+    lastRotateTime = now;
+    const bearing = map.getBearing() - EARTH_DEG_PER_SEC * delta;
+    map.setBearing(bearing);
+  }
+  requestAnimationFrame(rotationLoop);
+}
+
+map.on("mousedown", () => { autoRotate = false; isTracking = false; trackedSatId = null; });
+map.on("touchstart", () => { autoRotate = false; isTracking = false; trackedSatId = null; });
+
+// ─── SATELLITE LAYERS ────────────────────────────────────────────────────────
+function initSatelliteLayers() {
+  // Trails source
+  map.addSource("sat-trails", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] }
+  });
+
+  // Dots source
+  map.addSource("sat-dots", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] }
+  });
+
+  // Trail lines
+  map.addLayer({
+    id: "sat-trails-layer",
+    type: "line",
+    source: "sat-trails",
+    paint: {
+      "line-color": "#1a1610",
+      "line-width": 0.8,
+      "line-opacity": 0.35,
+    }
+  });
+
+  // Satellite dots
+  map.addLayer({
+    id: "sat-dots-layer",
+    type: "circle",
+    source: "sat-dots",
+    paint: {
+      "circle-radius": 4,
+      "circle-color": "#1a1610",
+      "circle-opacity": 0.9,
+      "circle-stroke-width": 0,
+    }
+  });
+
+  // Hover cursor
+  map.on("mouseenter", "sat-dots-layer", () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", "sat-dots-layer", () => { map.getCanvas().style.cursor = ""; });
+
+  // Hover tooltip
+  const tooltip = document.getElementById("sat-tooltip");
+  const tooltipName = document.getElementById("sat-tooltip-name");
+
+  map.on("mousemove", "sat-dots-layer", (e) => {
+    const props = e.features[0].properties;
+    tooltipName.textContent = props.name;
+    tooltip.style.left = e.point.x + "px";
+    tooltip.style.top = (e.point.y - 36) + "px";
+    tooltip.classList.add("visible");
+  });
+
+  map.on("mouseleave", "sat-dots-layer", () => {
+    tooltip.classList.remove("visible");
+  });
+
+  // Click handler
+  map.on("click", "sat-dots-layer", (e) => {
+    const props = e.features[0].properties;
+    const sat = currentSatellites.find(s => s.id === props.id);
+    if (!sat) return;
+    document.getElementById("daily-card").classList.remove("visible");
+    openPanel(sat);
+    flyToSatellite(sat);
+  });
+}
+
+// ─── UPDATE SATELLITE POSITIONS ──────────────────────────────────────────────
+function updateSatellitePositions() {
+  if (!currentSatellites.length) return;
+  if (!map.getSource("sat-dots")) return;
+
+  const now = new Date();
+  const dotFeatures = [];
+  const trailFeatures = [];
+
+  currentSatellites.forEach(sat => {
+    const pos = propagateSatellite(sat.l1, sat.l2, now);
+    if (!pos) return;
+
+    dotFeatures.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [pos.lon, pos.lat] },
+      properties: { id: sat.id, name: sat.name, desc: sat.desc }
+    });
+
+    // Trail
+    const trail = getTrailPoints(sat.l1, sat.l2, 15);
+    if (trail.length > 1) {
+      trailFeatures.push({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: trail },
+        properties: { id: sat.id }
+      });
+    }
+  });
+
+  map.getSource("sat-dots").setData({ type: "FeatureCollection", features: dotFeatures });
+  map.getSource("sat-trails").setData({ type: "FeatureCollection", features: trailFeatures });
+
+  // Track selected satellite
+  if (isTracking && trackedSatId) {
+    const sat = currentSatellites.find(s => s.id === trackedSatId);
+    if (sat) {
+      const pos = propagateSatellite(sat.l1, sat.l2, now);
+      if (pos) {
+        map.setCenter([pos.lon, pos.lat]);
+      }
+    }
+  }
+}
+
+// ─── FLY TO SATELLITE ────────────────────────────────────────────────────────
+function flyToSatellite(sat) {
+  autoRotate = false;
+  const pos = propagateSatellite(sat.l1, sat.l2, new Date());
+  if (!pos) return;
+
+  // Zoom level based on altitude — LEO close, GEO far
+  const zoom = pos.alt < 1000 ? 5 : pos.alt < 5000 ? 3.5 : 2;
+
+  map.flyTo({
+    center: [pos.lon, pos.lat],
+    zoom,
+    pitch: 0,
+    bearing: map.getBearing(),
+    duration: 2500,
+    easing: t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t,
+  });
+
+  // Start tracking after fly
+  setTimeout(() => {
+    isTracking = true;
+    trackedSatId = sat.id;
+  }, 2600);
+}
+
+// ─── DAILY CARD ───────────────────────────────────────────────────────────────
+function initDailyCard(satellites) {
+  if (!satellites || satellites.length === 0) return;
+  const { satellite: daily, issueNum } = getDailySatellite(satellites);
+  document.getElementById("daily-card-issue").textContent = `Issue No. ${issueNum} — Daily Satellite`;
+  document.getElementById("daily-card-name").textContent = daily.name;
+  document.getElementById("daily-card-desc").textContent = daily.desc;
+  document.getElementById("daily-card").addEventListener("click", () => {
+    document.getElementById("daily-card").classList.remove("visible");
+    openPanel(daily);
+    flyToSatellite(daily);
+  });
+  setTimeout(() => document.getElementById("daily-card").classList.add("visible"), 3500);
+}
+
+// ─── INFO PANEL ───────────────────────────────────────────────────────────────
 async function openPanel(sat) {
   currentPanelSat = sat;
-  panelCollapsed = false;
-
   const panel = document.getElementById("info-panel");
   const details = SAT_DETAILS[sat.id] || {};
 
-  // Set header
   document.getElementById("panel-sat-type").textContent = `◆ ${details.type || "Satellite"}`;
   document.getElementById("panel-sat-name").textContent = sat.name;
   document.getElementById("panel-sat-agency").textContent = details.agency || "";
 
-  // Set data table
   const dataEl = document.getElementById("panel-data-block");
   const rows = [
     ["Altitude", details.alt],
@@ -1127,38 +838,29 @@ async function openPanel(sat) {
     ["Period", details.period],
     ["Launched", details.launched],
   ].filter(([, v]) => v);
-
   dataEl.innerHTML = rows.map(([k, v]) => `
     <div class="panel-data-row">
       <span class="panel-data-key">${k}</span>
       <span class="panel-data-val">${v}</span>
-    </div>
-  `).join("");
+    </div>`).join("");
 
-  // Show loading state
   const textEl = document.getElementById("panel-text-content");
   textEl.innerHTML = `<p id="panel-loading">The archivist is searching the files</p>`;
 
-  // Show panel
   panel.classList.remove("collapsed");
   panel.classList.add("visible");
 
-  // Disable listen until text loads
   const listenBtn = document.getElementById("ctrl-listen");
   listenBtn.textContent = "▶ Listen";
   listenBtn.disabled = true;
   listenBtn.style.opacity = "0.3";
   listenBtn.style.cursor = "default";
 
-  // Top fade only visible when scrolled
   const body = document.getElementById("panel-body");
   const fadeTop = document.getElementById("panel-fade-top");
   fadeTop.style.opacity = "0";
-  body.onscroll = () => {
-    fadeTop.style.opacity = body.scrollTop > 20 ? "1" : "0";
-  };
+  body.onscroll = () => { fadeTop.style.opacity = body.scrollTop > 20 ? "1" : "0"; };
 
-  // Fetch story from Claude
   try {
     const res = await fetch("/api/story", {
       method: "POST",
@@ -1182,18 +884,96 @@ async function openPanel(sat) {
 
 function togglePanel() {
   const panel = document.getElementById("info-panel");
-  panelCollapsed = !panelCollapsed;
-  panel.classList.toggle("collapsed", panelCollapsed);
-  document.getElementById("ctrl-collapse").textContent = panelCollapsed ? "Expand" : "Collapse";
+  const collapsed = panel.classList.toggle("collapsed");
+  document.getElementById("ctrl-collapse").textContent = collapsed ? "↗ Expand" : "Collapse";
 }
 
 function closePanel() {
-  const panel = document.getElementById("info-panel");
-  panel.classList.remove("visible");
+  document.getElementById("info-panel").classList.remove("visible");
   currentPanelSat = null;
+  isTracking = false;
+  trackedSatId = null;
   if (narratorAudio) { narratorAudio.pause(); narratorAudio = null; narratorPlaying = false; }
 }
 
+// ─── NARRATOR ────────────────────────────────────────────────────────────────
+async function toggleNarrator() {
+  const btn = document.getElementById("ctrl-listen");
+  if (narratorPlaying && narratorAudio) {
+    narratorAudio.pause();
+    narratorPlaying = false;
+    btn.textContent = "▶ Resume";
+    return;
+  }
+  if (!narratorPlaying && narratorAudio) {
+    narratorAudio.play();
+    narratorPlaying = true;
+    btn.textContent = "◼ Pause";
+    return;
+  }
+  const textEl = document.getElementById("panel-text-content");
+  const text = textEl.innerText.trim();
+  if (!text || text.includes("archivist is searching")) return;
+  btn.textContent = "… Loading";
+  try {
+    const res = await fetch("/api/narrate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, satId: currentPanelSat?.id })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      btn.textContent = `✕ ${err.error || res.status}`;
+      setTimeout(() => btn.textContent = "▶ Listen", 4000);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    narratorAudio = new Audio(url);
+    narratorAudio.play();
+    narratorPlaying = true;
+    btn.textContent = "◼ Pause";
+    narratorAudio.onended = () => {
+      narratorPlaying = false;
+      narratorAudio = null;
+      btn.textContent = "▶ Listen";
+      URL.revokeObjectURL(url);
+    };
+  } catch(e) {
+    btn.textContent = `✕ ${e.message}`;
+    setTimeout(() => btn.textContent = "▶ Listen", 4000);
+  }
+}
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+const season = getCurrentSeason();
+document.getElementById("season-label").textContent = season.theme;
+document.getElementById("season-indicator").textContent = `${season.name} — ${season.theme}`;
+
+updateClock();
+setInterval(updateClock, 1000);
+
+document.getElementById("masthead").classList.add("visible");
+document.getElementById("season-indicator").classList.add("visible");
+
+map.on("load", async () => {
+  rotationLoop();
+
+  document.getElementById("sat-count").textContent = "Fetching orbital data…";
+  SATELLITES = await fetchLiveTLEs(SATELLITE_CATALOGUE);
+  currentSatellites = SATELLITES;
+
+  document.getElementById("sat-count").textContent = `${SATELLITES.length} objects tracked`;
+  document.getElementById("sat-count").classList.add("visible");
+
+  // Initial draw
+  updateSatellitePositions();
+
+  // Update every second for smooth movement
+  setInterval(updateSatellitePositions, 1000);
+
+  setTimeout(() => initDailyCard(currentSatellites), 3500);
+});
 </script>
 </body>
 </html>
