@@ -667,16 +667,25 @@ let autoRotate = true;
 let isTracking = false;
 let trackedSatId = null;
 const EARTH_DEG_PER_SEC = 360 / 86164;
-let lastRotateTime = Date.now();
+let lastRotateTime = performance.now();
+let animationRunning = false;
 
-function rotationLoop() {
+let lastSatUpdate = 0;
+
+function rotationLoop(timestamp) {
   if (autoRotate && !isTracking) {
-    const now = Date.now();
-    const delta = (now - lastRotateTime) / 1000;
-    lastRotateTime = now;
+    const delta = (timestamp - lastRotateTime) / 1000;
     const bearing = map.getBearing() - EARTH_DEG_PER_SEC * delta;
     map.setBearing(bearing);
   }
+  lastRotateTime = timestamp;
+
+  // Update satellite positions every 100ms — smooth but not excessive
+  if (timestamp - lastSatUpdate > 100) {
+    updateSatellitePositions();
+    lastSatUpdate = timestamp;
+  }
+
   requestAnimationFrame(rotationLoop);
 }
 
@@ -754,6 +763,22 @@ function initSatelliteLayers() {
 }
 
 // ─── UPDATE SATELLITE POSITIONS ──────────────────────────────────────────────
+const EARTH_RADIUS_KM = 6371;
+
+function projectAltitude(lon, lat, altKm) {
+  // Scale lat/lon outward from Earth center to simulate altitude on globe
+  const scale = 1 + (Math.max(altKm, 0) / EARTH_RADIUS_KM);
+  const latR = lat * Math.PI / 180;
+  const lonR = lon * Math.PI / 180;
+  const x = Math.cos(latR) * Math.cos(lonR) * scale;
+  const y = Math.cos(latR) * Math.sin(lonR) * scale;
+  const z = Math.sin(latR) * scale;
+  return [
+    Math.atan2(y, x) * 180 / Math.PI,
+    Math.atan2(z, Math.sqrt(x*x + y*y)) * 180 / Math.PI
+  ];
+}
+
 function updateSatellitePositions() {
   if (!currentSatellites.length) return;
   if (!map.getSource("sat-dots")) return;
@@ -766,18 +791,21 @@ function updateSatellitePositions() {
     const pos = propagateSatellite(sat.l1, sat.l2, now);
     if (!pos) return;
 
+    const [pLon, pLat] = projectAltitude(pos.lon, pos.lat, pos.alt);
+
     dotFeatures.push({
       type: "Feature",
-      geometry: { type: "Point", coordinates: [pos.lon, pos.lat] },
+      geometry: { type: "Point", coordinates: [pLon, pLat] },
       properties: { id: sat.id, name: sat.name, desc: sat.desc }
     });
 
-    // Trail — multiple segments to handle antimeridian
+    // Trail with altitude projection
     const segments = getTrailPoints(sat.l1, sat.l2, 15);
     segments.forEach(seg => {
+      const projectedSeg = seg.map(([lon, lat]) => projectAltitude(lon, lat, pos.alt));
       trailFeatures.push({
         type: "Feature",
-        geometry: { type: "LineString", coordinates: seg },
+        geometry: { type: "LineString", coordinates: projectedSeg },
         properties: { id: sat.id }
       });
     });
@@ -791,9 +819,7 @@ function updateSatellitePositions() {
     const sat = currentSatellites.find(s => s.id === trackedSatId);
     if (sat) {
       const pos = propagateSatellite(sat.l1, sat.l2, now);
-      if (pos) {
-        map.setCenter([pos.lon, pos.lat]);
-      }
+      if (pos) map.setCenter([pos.lon, pos.lat]);
     }
   }
 }
@@ -986,8 +1012,8 @@ map.on("load", async () => {
   // Initial draw
   updateSatellitePositions();
 
-  // Update every second for smooth movement
-  setInterval(updateSatellitePositions, 1000);
+  // Animation loop handles all updates
+  requestAnimationFrame(rotationLoop);
 
   setTimeout(() => initDailyCard(currentSatellites), 3500);
 });
