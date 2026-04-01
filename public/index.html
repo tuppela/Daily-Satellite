@@ -809,14 +809,19 @@ function addSatellite3DLayer() {
       const cy = Math.cos(camLat) * Math.sin(camLon);
       const cz = Math.sin(camLat);
 
-      function isVisible(lon, lat) {
+      function isVisible(lon, lat, altM = 0) {
         const phi = lat * Math.PI / 180;
         const lam = lon * Math.PI / 180;
         const px = Math.cos(phi) * Math.cos(lam);
         const py = Math.cos(phi) * Math.sin(lam);
         const pz = Math.sin(phi);
-        // dot product > 0 means same hemisphere as camera
-        return (px * cx + py * cy + pz * cz) > -0.1; // small margin for edge sats
+        const dot = px * cx + py * cy + pz * cz;
+        // At altitude, the point is visible even when it's "past" the horizon.
+        // Earth radius ~6371km. A point at altM metres above surface is visible
+        // when the angle from camera exceeds 90° by up to acos(R / (R + alt)).
+        const R = 6371000;
+        const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
+        return dot > threshold;
       }
 
       // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
@@ -827,7 +832,7 @@ function addSatellite3DLayer() {
         let current = [];
 
         satTrails3D.forEach((p, i) => {
-          const visible = isVisible(p.lon, p.lat);
+          const visible = isVisible(p.lon, p.lat, p.altM);
           // Also break between satellites (fade resets to 0 = start of new sat)
           const isNewSat = i > 0 && p.fade < satTrails3D[i-1].fade;
           if (isNewSat && current.length > 1) {
@@ -871,7 +876,7 @@ function addSatellite3DLayer() {
       }
 
       // ── Satellite dots — culled to visible hemisphere ──────────────────────
-      const visibleDots = satPositions3D.filter(p => isVisible(p.lon, p.lat));
+      const visibleDots = satPositions3D.filter(p => isVisible(p.lon, p.lat, p.altM));
       if (!visibleDots.length) {
         gl.depthMask(true);
         gl.disable(gl.DEPTH_TEST);
