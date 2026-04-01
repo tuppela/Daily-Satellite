@@ -241,18 +241,22 @@ app.post("/api/narrate", async (req, res) => {
 });
 const indexPath = path.join(__dirname, "public", "index.html");
 
-app.get("/", (req, res) => {
+// Serve index.html with token injected for ALL html requests
+function serveIndex(req, res) {
   let html = require("fs").readFileSync(indexPath, "utf8");
   const token = process.env.MAPBOX_TOKEN || "";
   html = html.replace('window.MAPBOX_TOKEN || ""', `"${token}"`);
   res.setHeader("Content-Type", "text/html");
   res.send(html);
-});
+}
 
-app.use(express.static(path.join(__dirname, "public")));
-app.get("*", (req, res) => {
-  res.sendFile(indexPath);
-});
+app.get("/", serveIndex);
+
+// Static files (JS, CSS, images) — but NOT index.html
+app.use(express.static(path.join(__dirname, "public"), { index: false }));
+
+// All other routes serve index.html with token
+app.get("*", serveIndex);
 
 app.listen(PORT, () => {
   console.log(`Orbital Register running on port ${PORT}`);
