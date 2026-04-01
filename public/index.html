@@ -595,7 +595,7 @@ function propagateSatellite(tle1, tle2, date) {
   } catch(e) { return null; }
 }
 
-// Get trail points — past N minutes, antimeridian-safe
+// Get trail points — past N minutes, antimeridian-safe, returns [lon, lat, altKm]
 function getTrailPoints(tle1, tle2, minutes = 15) {
   const points = [];
   const now = Date.now();
@@ -603,7 +603,7 @@ function getTrailPoints(tle1, tle2, minutes = 15) {
   for (let i = steps; i >= 0; i--) {
     const t = new Date(now - (i / steps) * minutes * 60 * 1000);
     const pos = propagateSatellite(tle1, tle2, t);
-    if (pos) points.push([pos.lon, pos.lat]);
+    if (pos) points.push([pos.lon, pos.lat, pos.alt]);
   }
 
   // Split trail at antimeridian crossings to prevent lines through Earth
@@ -613,7 +613,6 @@ function getTrailPoints(tle1, tle2, minutes = 15) {
     if (i === 0) { current.push(points[i]); continue; }
     const prev = points[i - 1];
     const curr = points[i];
-    // If longitude jumps more than 180° it crossed the antimeridian
     if (Math.abs(curr[0] - prev[0]) > 180) {
       if (current.length > 1) segments.push(current);
       current = [curr];
@@ -693,78 +692,134 @@ map.on("mousedown", () => { autoRotate = false; isTracking = false; trackedSatId
 // Don't intercept touchstart — let Mapbox handle mobile gestures natively
 
 // ─── SATELLITE 3D POSITIONS (shared with WebGL layer) ────────────────────────
-let satPositions3D = []; // [{lon, lat, altM}] updated each frame
+let satPositions3D = [];   // [{lon, lat, altM, id, name}] updated each frame
+let satTrails3D = [];      // flat array of {lon,lat,altM} for all trail points
+let satTrailSegments = []; // vertex count per satellite (for LINE_STRIP draws)
 
 // ─── CUSTOM WEBGL LAYER — TRUE ALTITUDE DOTS ─────────────────────────────────
 function addSatellite3DLayer() {
+  // ── Shared vertex shader (used for both trails and dots) ──────────────────
   const vertexSrc = `
     attribute vec3 a_pos;
     uniform mat4 u_matrix;
     uniform float u_size;
     void main() {
       gl_Position = u_matrix * vec4(a_pos, 1.0);
-      // Scale point size by w so dots stay consistent size regardless of zoom
-      gl_PointSize = u_size * (1.0 / gl_Position.w) * 800.0;
+      gl_PointSize = u_size;
     }
   `;
-  const fragmentSrc = `
+
+  // ── Dot fragment: off-white fill + 2px black border, circular ────────────
+  const dotFragSrc = `
+    precision mediump float;
+    uniform float u_size;
+    void main() {
+      vec2 c = gl_PointCoord - vec2(0.5);
+      float dist = length(c) * u_size;
+      float r = u_size * 0.5;
+      float border = 2.0;
+      if (dist > r) discard;
+      if (dist > r - border) {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+      } else {
+        gl_FragColor = vec4(0.941, 0.922, 0.878, 1.0); // #f0ebe0
+      }
+    }
+  `;
+
+  // ── Trail fragment: dark ink, semi-transparent ────────────────────────────
+  const trailFragSrc = `
     precision mediump float;
     void main() {
-      // Circular dot
-      vec2 c = gl_PointCoord - vec2(0.5);
-      if (dot(c, c) > 0.25) discard;
-      gl_FragColor = vec4(0.102, 0.086, 0.063, 0.92);
+      gl_FragColor = vec4(0.102, 0.086, 0.063, 0.4);
     }
   `;
+
+  function makeProgram(gl, fragSrc) {
+    const vert = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vert, vertexSrc);
+    gl.compileShader(vert);
+    const frag = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(frag, fragSrc);
+    gl.compileShader(frag);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vert);
+    gl.attachShader(prog, frag);
+    gl.linkProgram(prog);
+    return prog;
+  }
 
   const layer = {
     id: "sat-dots-3d",
     type: "custom",
+
     onAdd(map, gl) {
-      const vert = gl.createShader(gl.VERTEX_SHADER);
-      gl.shaderSource(vert, vertexSrc);
-      gl.compileShader(vert);
+      this.dotProg   = makeProgram(gl, dotFragSrc);
+      this.trailProg = makeProgram(gl, trailFragSrc);
 
-      const frag = gl.createShader(gl.FRAGMENT_SHADER);
-      gl.shaderSource(frag, fragmentSrc);
-      gl.compileShader(frag);
+      // Dot program uniforms/attribs
+      this.dot_aPos    = gl.getAttribLocation(this.dotProg, "a_pos");
+      this.dot_uMatrix = gl.getUniformLocation(this.dotProg, "u_matrix");
+      this.dot_uSize   = gl.getUniformLocation(this.dotProg, "u_size");
 
-      this.program = gl.createProgram();
-      gl.attachShader(this.program, vert);
-      gl.attachShader(this.program, frag);
-      gl.linkProgram(this.program);
+      // Trail program uniforms/attribs
+      this.trail_aPos    = gl.getAttribLocation(this.trailProg, "a_pos");
+      this.trail_uMatrix = gl.getUniformLocation(this.trailProg, "u_matrix");
+      this.trail_uSize   = gl.getUniformLocation(this.trailProg, "u_size");
 
-      this.aPos = gl.getAttribLocation(this.program, "a_pos");
-      this.uMatrix = gl.getUniformLocation(this.program, "u_matrix");
-      this.uSize = gl.getUniformLocation(this.program, "u_size");
-
-      this.buffer = gl.createBuffer();
+      this.dotBuffer   = gl.createBuffer();
+      this.trailBuffer = gl.createBuffer();
     },
+
     render(gl, matrix) {
-      if (!satPositions3D.length) return;
-
-      // Build flat [x,y,z, x,y,z, ...] array in Mercator coords
-      const data = new Float32Array(satPositions3D.length * 3);
-      satPositions3D.forEach((p, i) => {
-        const mc = mapboxgl.MercatorCoordinate.fromLngLat(
-          { lng: p.lon, lat: p.lat },
-          p.altM
-        );
-        data[i * 3]     = mc.x;
-        data[i * 3 + 1] = mc.y;
-        data[i * 3 + 2] = mc.z;
-      });
-
-      gl.useProgram(this.program);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-      gl.enableVertexAttribArray(this.aPos);
-      gl.vertexAttribPointer(this.aPos, 3, gl.FLOAT, false, 0, 0);
-      gl.uniformMatrix4fv(this.uMatrix, false, matrix);
-      gl.uniform1f(this.uSize, 4.5);
-
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      // ── Draw trails ────────────────────────────────────────────────────────
+      if (satTrails3D.length > 0) {
+        const trailData = new Float32Array(satTrails3D.length * 3);
+        satTrails3D.forEach((p, i) => {
+          const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+          trailData[i * 3]     = mc.x;
+          trailData[i * 3 + 1] = mc.y;
+          trailData[i * 3 + 2] = mc.z;
+        });
+
+        gl.useProgram(this.trailProg);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.trailBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, trailData, gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(this.trail_aPos);
+        gl.vertexAttribPointer(this.trail_aPos, 3, gl.FLOAT, false, 0, 0);
+        gl.uniformMatrix4fv(this.trail_uMatrix, false, matrix);
+        gl.uniform1f(this.trail_uSize, 1.0);
+
+        // Draw each satellite's trail as a LINE_STRIP
+        let offset = 0;
+        satTrailSegments.forEach(count => {
+          if (count > 1) gl.drawArrays(gl.LINE_STRIP, offset, count);
+          offset += count;
+        });
+      }
+
+      // ── Draw dots ──────────────────────────────────────────────────────────
+      if (!satPositions3D.length) return;
+
+      const dotData = new Float32Array(satPositions3D.length * 3);
+      satPositions3D.forEach((p, i) => {
+        const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+        dotData[i * 3]     = mc.x;
+        dotData[i * 3 + 1] = mc.y;
+        dotData[i * 3 + 2] = mc.z;
+      });
+
+      gl.useProgram(this.dotProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, dotData, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(this.dot_aPos);
+      gl.vertexAttribPointer(this.dot_aPos, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
+      gl.uniform1f(this.dot_uSize, 25.0);
+
       gl.drawArrays(gl.POINTS, 0, satPositions3D.length);
     }
   };
@@ -774,71 +829,74 @@ function addSatellite3DLayer() {
 
 // ─── SATELLITE LAYERS ────────────────────────────────────────────────────────
 function initSatelliteLayers() {
-  // Trails source
-  map.addSource("sat-trails", {
-    type: "geojson",
-    data: { type: "FeatureCollection", features: [] }
-  });
-
-  // Dots source
+  // sat-dots source kept for backward compatibility but no longer rendered
   map.addSource("sat-dots", {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] }
   });
 
-  // Trail lines
-  map.addLayer({
-    id: "sat-trails-layer",
-    type: "line",
-    source: "sat-trails",
-    paint: {
-      "line-color": "#1a1610",
-      "line-width": 0.8,
-      "line-opacity": 0.35,
-    }
-  });
-
-  // Satellite dots — invisible, used only for click/hover hit detection
-  // Actual rendering is done by the custom WebGL layer below
-  map.addLayer({
-    id: "sat-dots-layer",
-    type: "circle",
-    source: "sat-dots",
-    paint: {
-      "circle-radius": 6,
-      "circle-color": "#1a1610",
-      "circle-opacity": 0,
-      "circle-stroke-width": 0,
-    }
-  });
-
-  // Custom WebGL layer — renders satellite dots at true orbital altitude
+  // Custom WebGL layer handles both trails and dots at true altitude
   addSatellite3DLayer();
 
-  // Hover cursor
-  map.on("mouseenter", "sat-dots-layer", () => { map.getCanvas().style.cursor = "pointer"; });
-  map.on("mouseleave", "sat-dots-layer", () => { map.getCanvas().style.cursor = ""; });
+  // ── Canvas-space hover + click hit detection ───────────────────────────────
+  // We can't use Mapbox's layer events because our dots are WebGL points at
+  // altitude — they don't exist in the GeoJSON hit tree. Instead we project
+  // each satellite's 3D Mercator position to screen space each frame and do
+  // a simple distance check on mousemove/click.
 
-  // Hover tooltip
   const tooltip = document.getElementById("sat-tooltip");
   const tooltipName = document.getElementById("sat-tooltip-name");
+  const canvas = map.getCanvas();
+  const HIT_RADIUS = 18; // px — generous to account for 25px dot size
 
-  map.on("mousemove", "sat-dots-layer", (e) => {
-    const props = e.features[0].properties;
-    tooltipName.textContent = props.name;
-    tooltip.style.left = e.point.x + "px";
-    tooltip.style.top = (e.point.y - 36) + "px";
-    tooltip.classList.add("visible");
+  function getSatScreenPositions() {
+    return satPositions3D.map((p, i) => {
+      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+      const screen = map.project([p.lon, p.lat]); // approximate 2D projection for hit test
+      // For a closer approximation we use the unprojected screen point — good enough for hover
+      return { screen, sat: currentSatellites[i] };
+    }).filter(x => x.sat);
+  }
+
+  function findHitSat(mouseX, mouseY) {
+    let closest = null;
+    let minDist = HIT_RADIUS;
+    getSatScreenPositions().forEach(({ screen, sat }) => {
+      const dx = screen.x - mouseX;
+      const dy = screen.y - mouseY;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < minDist) { minDist = d; closest = sat; }
+    });
+    return closest;
+  }
+
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const sat = findHitSat(mx, my);
+    if (sat) {
+      tooltipName.textContent = sat.name;
+      tooltip.style.left = mx + "px";
+      tooltip.style.top = (my - 36) + "px";
+      tooltip.classList.add("visible");
+      canvas.style.cursor = "pointer";
+    } else {
+      tooltip.classList.remove("visible");
+      canvas.style.cursor = "";
+    }
   });
 
-  map.on("mouseleave", "sat-dots-layer", () => {
+  canvas.addEventListener("mouseleave", () => {
     tooltip.classList.remove("visible");
+    canvas.style.cursor = "";
   });
 
-  // Click handler
-  map.on("click", "sat-dots-layer", (e) => {
-    const props = e.features[0].properties;
-    const sat = currentSatellites.find(s => s.id === props.id);
+  canvas.addEventListener("click", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const sat = findHitSat(mx, my);
     if (!sat) return;
     document.getElementById("daily-card").classList.remove("visible");
     openPanel(sat);
@@ -851,37 +909,32 @@ function updateSatellitePositions() {
   if (!map.getSource("sat-dots")) return;
 
   const now = new Date();
-  const dotFeatures = [];
-  const trailFeatures = [];
   const newPositions3D = [];
+  const newTrails3D = [];
+  const newTrailSegments = [];
 
   currentSatellites.forEach(sat => {
     const pos = propagateSatellite(sat.l1, sat.l2, now);
     if (!pos) return;
 
-    // GeoJSON feature — flat coords, used only for click/hover hit detection
-    dotFeatures.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [pos.lon, pos.lat] },
-      properties: { id: sat.id, name: sat.name, desc: sat.desc }
-    });
-
-    // 3D position — altitude in metres for WebGL layer
+    // 3D position for WebGL dot rendering
     newPositions3D.push({ lon: pos.lon, lat: pos.lat, altM: pos.alt * 1000 });
 
+    // 3D trail — flatten all segments into shared buffer, record vertex count
     const segments = getTrailPoints(sat.l1, sat.l2, 15);
+    let count = 0;
     segments.forEach(seg => {
-      trailFeatures.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: seg },
-        properties: { id: sat.id }
+      seg.forEach(([lon, lat, altKm]) => {
+        newTrails3D.push({ lon, lat, altM: altKm * 1000 });
+        count++;
       });
     });
+    if (count > 1) newTrailSegments.push(count);
   });
 
   satPositions3D = newPositions3D;
-  map.getSource("sat-dots").setData({ type: "FeatureCollection", features: dotFeatures });
-  map.getSource("sat-trails").setData({ type: "FeatureCollection", features: trailFeatures });
+  satTrails3D = newTrails3D;
+  satTrailSegments = newTrailSegments;
   map.triggerRepaint();
 
   if (isTracking && trackedSatId) {
