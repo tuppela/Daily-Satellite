@@ -809,6 +809,14 @@ function addSatellite3DLayer() {
       const cy = Math.cos(camLat) * Math.sin(camLon);
       const cz = Math.sin(camLat);
 
+      // Globe screen bounds — points projecting outside this circle are clipped
+      const canvas = map.getCanvas();
+      const cw = canvas.width  / window.devicePixelRatio;
+      const ch = canvas.height / window.devicePixelRatio;
+      const globeRadius = Math.min(cw, ch) * 0.5;
+      const globeCx = cw * 0.5;
+      const globeCy = ch * 0.5;
+
       function isVisible(lon, lat, altM = 0) {
         const phi = lat * Math.PI / 180;
         const lam = lon * Math.PI / 180;
@@ -816,12 +824,16 @@ function addSatellite3DLayer() {
         const py = Math.cos(phi) * Math.sin(lam);
         const pz = Math.sin(phi);
         const dot = px * cx + py * cy + pz * cz;
-        // At altitude, the point is visible even when it's "past" the horizon.
-        // Earth radius ~6371km. A point at altM metres above surface is visible
-        // when the angle from camera exceeds 90° by up to acos(R / (R + alt)).
+        // Altitude-adjusted horizon threshold
         const R = 6371000;
         const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
-        return dot > threshold;
+        if (dot <= threshold) return false;
+        // Screen-space check: reject if projected point is too far outside globe circle
+        // Use a generous multiplier so high-alt sats right at the limb still render
+        const s = map.project([lon, lat]);
+        const dx = s.x - globeCx;
+        const dy = s.y - globeCy;
+        return (dx * dx + dy * dy) < (globeRadius * 2.2) * (globeRadius * 2.2);
       }
 
       // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
