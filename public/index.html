@@ -723,7 +723,6 @@ function addSatellite3DLayer() {
     uniform mat4 u_matrix;
     void main() {
       gl_Position = u_matrix * vec4(a_pos, 1.0);
-      gl_PointSize = 3.0;
       v_fade = a_fade;
     }
   `;
@@ -732,9 +731,7 @@ function addSatellite3DLayer() {
     precision mediump float;
     varying float v_fade;
     void main() {
-      vec2 c = gl_PointCoord - vec2(0.5);
-      if (dot(c,c) > 0.25) discard;
-      gl_FragColor = vec4(0.102, 0.086, 0.063, v_fade * 0.6);
+      gl_FragColor = vec4(0.102, 0.086, 0.063, v_fade * 0.55);
     }
   `;
 
@@ -801,43 +798,88 @@ function addSatellite3DLayer() {
       gl.depthMask(false);        // don't write to depth buffer (we're additive on top)
       gl.depthFunc(gl.LEQUAL);    // pass if at or in front of existing depth
 
-      // ── Trails: interleaved [x, y, z, fade,  x, y, z, fade, ...] ──────────
-      if (satTrails3D.length > 0) {
-        const STRIDE = 4; // floats per vertex
-        const trailData = new Float32Array(satTrails3D.length * STRIDE);
-        satTrails3D.forEach((p, i) => {
-          const mc = mapboxgl.MercatorCoordinate.fromLngLat(
-            { lng: p.lon, lat: p.lat }, p.altM
-          );
-          trailData[i * STRIDE]     = mc.x;
-          trailData[i * STRIDE + 1] = mc.y;
-          trailData[i * STRIDE + 2] = mc.z;
-          trailData[i * STRIDE + 3] = p.fade;
-        });
+      // ── Horizon cull: skip points on the back hemisphere ──────────────────
+      // Camera is pointing at map.getCenter(). Any point whose great-circle
+      // angle from center > 90° is behind the globe — discard it.
+      const center = map.getCenter();
+      const camLat = center.lat * Math.PI / 180;
+      const camLon = center.lng * Math.PI / 180;
+      // Camera vector in 3D (unit sphere)
+      const cx = Math.cos(camLat) * Math.cos(camLon);
+      const cy = Math.cos(camLat) * Math.sin(camLon);
+      const cz = Math.sin(camLat);
 
-        const bytes = Float32Array.BYTES_PER_ELEMENT;
-        gl.useProgram(this.trailProg);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.trailBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, trailData, gl.DYNAMIC_DRAW);
-
-        gl.enableVertexAttribArray(this.trail_aPos);
-        gl.vertexAttribPointer(this.trail_aPos,  3, gl.FLOAT, false, STRIDE * bytes, 0);
-        gl.enableVertexAttribArray(this.trail_aFade);
-        gl.vertexAttribPointer(this.trail_aFade, 1, gl.FLOAT, false, STRIDE * bytes, 3 * bytes);
-
-        gl.uniformMatrix4fv(this.trail_uMatrix, false, matrix);
-        gl.drawArrays(gl.POINTS, 0, satTrails3D.length);
+      function isVisible(lon, lat) {
+        const phi = lat * Math.PI / 180;
+        const lam = lon * Math.PI / 180;
+        const px = Math.cos(phi) * Math.cos(lam);
+        const py = Math.cos(phi) * Math.sin(lam);
+        const pz = Math.sin(phi);
+        // dot product > 0 means same hemisphere as camera
+        return (px * cx + py * cy + pz * cz) > -0.1; // small margin for edge sats
       }
 
-      // ── Satellite dots ─────────────────────────────────────────────────────
-      if (!satPositions3D.length) {
+      // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
+      if (satTrails3D.length > 0) {
+        // Build visible segments — break when a point goes behind the horizon
+        const visiblePoints = [];
+        const segmentCounts = [];
+        let current = [];
+
+        satTrails3D.forEach((p, i) => {
+          const visible = isVisible(p.lon, p.lat);
+          // Also break between satellites (fade resets to 0 = start of new sat)
+          const isNewSat = i > 0 && p.fade < satTrails3D[i-1].fade;
+          if (isNewSat && current.length > 1) {
+            visiblePoints.push(...current);
+            segmentCounts.push(current.length);
+            current = [];
+          }
+          if (visible) {
+            const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+            current.push(mc.x, mc.y, mc.z, p.fade);
+          } else if (current.length > 1) {
+            visiblePoints.push(...current);
+            segmentCounts.push(current.length);
+            current = [];
+          } else {
+            current = [];
+          }
+        });
+        if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length); }
+
+        if (visiblePoints.length > 0) {
+          const STRIDE = 4;
+          const trailData = new Float32Array(visiblePoints);
+          const bytes = Float32Array.BYTES_PER_ELEMENT;
+
+          gl.useProgram(this.trailProg);
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.trailBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, trailData, gl.DYNAMIC_DRAW);
+          gl.enableVertexAttribArray(this.trail_aPos);
+          gl.vertexAttribPointer(this.trail_aPos,  3, gl.FLOAT, false, STRIDE * bytes, 0);
+          gl.enableVertexAttribArray(this.trail_aFade);
+          gl.vertexAttribPointer(this.trail_aFade, 1, gl.FLOAT, false, STRIDE * bytes, 3 * bytes);
+          gl.uniformMatrix4fv(this.trail_uMatrix, false, matrix);
+
+          let offset = 0;
+          segmentCounts.forEach(count => {
+            if (count > 1) gl.drawArrays(gl.LINE_STRIP, offset, count);
+            offset += count;
+          });
+        }
+      }
+
+      // ── Satellite dots — culled to visible hemisphere ──────────────────────
+      const visibleDots = satPositions3D.filter(p => isVisible(p.lon, p.lat));
+      if (!visibleDots.length) {
         gl.depthMask(true);
         gl.disable(gl.DEPTH_TEST);
         return;
       }
 
-      const dotData = new Float32Array(satPositions3D.length * 3);
-      satPositions3D.forEach((p, i) => {
+      const dotData = new Float32Array(visibleDots.length * 3);
+      visibleDots.forEach((p, i) => {
         const mc = mapboxgl.MercatorCoordinate.fromLngLat(
           { lng: p.lon, lat: p.lat }, p.altM
         );
@@ -852,7 +894,7 @@ function addSatellite3DLayer() {
       gl.enableVertexAttribArray(this.dot_aPos);
       gl.vertexAttribPointer(this.dot_aPos, 3, gl.FLOAT, false, 0, 0);
       gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
-      gl.drawArrays(gl.POINTS, 0, satPositions3D.length);
+      gl.drawArrays(gl.POINTS, 0, visibleDots.length);
 
       // Restore GL state for Mapbox
       gl.depthMask(true);
