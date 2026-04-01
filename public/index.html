@@ -762,23 +762,6 @@ function initSatelliteLayers() {
   });
 }
 
-// ─── UPDATE SATELLITE POSITIONS ──────────────────────────────────────────────
-const EARTH_RADIUS_KM = 6371;
-
-function projectAltitude(lon, lat, altKm) {
-  // Scale lat/lon outward from Earth center to simulate altitude on globe
-  const scale = 1 + (Math.max(altKm, 0) / EARTH_RADIUS_KM);
-  const latR = lat * Math.PI / 180;
-  const lonR = lon * Math.PI / 180;
-  const x = Math.cos(latR) * Math.cos(lonR) * scale;
-  const y = Math.cos(latR) * Math.sin(lonR) * scale;
-  const z = Math.sin(latR) * scale;
-  return [
-    Math.atan2(y, x) * 180 / Math.PI,
-    Math.atan2(z, Math.sqrt(x*x + y*y)) * 180 / Math.PI
-  ];
-}
-
 function updateSatellitePositions() {
   if (!currentSatellites.length) return;
   if (!map.getSource("sat-dots")) return;
@@ -791,21 +774,17 @@ function updateSatellitePositions() {
     const pos = propagateSatellite(sat.l1, sat.l2, now);
     if (!pos) return;
 
-    const [pLon, pLat] = projectAltitude(pos.lon, pos.lat, pos.alt);
-
     dotFeatures.push({
       type: "Feature",
-      geometry: { type: "Point", coordinates: [pLon, pLat] },
+      geometry: { type: "Point", coordinates: [pos.lon, pos.lat] },
       properties: { id: sat.id, name: sat.name, desc: sat.desc }
     });
 
-    // Trail with altitude projection
     const segments = getTrailPoints(sat.l1, sat.l2, 15);
     segments.forEach(seg => {
-      const projectedSeg = seg.map(([lon, lat]) => projectAltitude(lon, lat, pos.alt));
       trailFeatures.push({
         type: "Feature",
-        geometry: { type: "LineString", coordinates: projectedSeg },
+        geometry: { type: "LineString", coordinates: seg },
         properties: { id: sat.id }
       });
     });
@@ -814,7 +793,6 @@ function updateSatellitePositions() {
   map.getSource("sat-dots").setData({ type: "FeatureCollection", features: dotFeatures });
   map.getSource("sat-trails").setData({ type: "FeatureCollection", features: trailFeatures });
 
-  // Track selected satellite
   if (isTracking && trackedSatId) {
     const sat = currentSatellites.find(s => s.id === trackedSatId);
     if (sat) {
