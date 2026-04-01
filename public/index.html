@@ -809,14 +809,6 @@ function addSatellite3DLayer() {
       const cy = Math.cos(camLat) * Math.sin(camLon);
       const cz = Math.sin(camLat);
 
-      // Globe screen bounds — points projecting outside this circle are clipped
-      const canvas = map.getCanvas();
-      const cw = canvas.width  / window.devicePixelRatio;
-      const ch = canvas.height / window.devicePixelRatio;
-      const globeRadius = Math.min(cw, ch) * 0.5;
-      const globeCx = cw * 0.5;
-      const globeCy = ch * 0.5;
-
       function isVisible(lon, lat, altM = 0) {
         const phi = lat * Math.PI / 180;
         const lam = lon * Math.PI / 180;
@@ -824,16 +816,9 @@ function addSatellite3DLayer() {
         const py = Math.cos(phi) * Math.sin(lam);
         const pz = Math.sin(phi);
         const dot = px * cx + py * cy + pz * cz;
-        // Altitude-adjusted horizon threshold
         const R = 6371000;
         const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
-        if (dot <= threshold) return false;
-        // Screen-space check: reject if projected point is too far outside globe circle
-        // Use a generous multiplier so high-alt sats right at the limb still render
-        const s = map.project([lon, lat]);
-        const dx = s.x - globeCx;
-        const dy = s.y - globeCy;
-        return (dx * dx + dy * dy) < (globeRadius * 2.2) * (globeRadius * 2.2);
+        return dot > threshold;
       }
 
       // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
@@ -1012,7 +997,10 @@ function updateSatellitePositions() {
     if (!pos) return;
 
     // 3D position for WebGL dot rendering
-    newPositions3D.push({ lon: pos.lon, lat: pos.lat, altM: pos.alt * 1000 });
+    // Cap visual altitude at 2000km — MEO/GEO break Mercator 3D coords beyond this
+    const MAX_RENDER_ALT_M = 2000 * 1000;
+    const renderAltM = Math.min(pos.alt * 1000, MAX_RENDER_ALT_M);
+    newPositions3D.push({ lon: pos.lon, lat: pos.lat, altM: renderAltM, trueAltM: pos.alt * 1000 });
 
     // 3D trail — each point gets a fade value 0 (oldest) → 1 (newest)
     const segments = getTrailPoints(sat.l1, sat.l2, 15);
@@ -1022,7 +1010,7 @@ function updateSatellitePositions() {
     trailPoints.forEach(([lon, lat, altKm], idx) => {
       newTrails3D.push({
         lon, lat,
-        altM: altKm * 1000,
+        altM: Math.min(altKm * 1000, 2000 * 1000),
         fade: total > 1 ? idx / (total - 1) : 1.0
       });
     });
