@@ -830,25 +830,21 @@ function addSatellite3DLayer() {
 
         satTrails3D.forEach((p, i) => {
           const visible = isVisible(p.lon, p.lat, p.altM);
-          // Also break between satellites (fade resets to 0 = start of new sat)
-          const isNewSat = i > 0 && p.fade < satTrails3D[i-1].fade;
-          if (isNewSat && current.length > 1) {
-            visiblePoints.push(...current);
-            segmentCounts.push(current.length);
+          // Break segment when satellite changes
+          const isNewSat = i > 0 && p.satId !== satTrails3D[i-1].satId;
+          if (isNewSat) {
+            if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length / 4); }
             current = [];
           }
           if (visible) {
             const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
             current.push(mc.x, mc.y, mc.z, p.fade);
-          } else if (current.length > 1) {
-            visiblePoints.push(...current);
-            segmentCounts.push(current.length);
-            current = [];
           } else {
+            if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length / 4); }
             current = [];
           }
         });
-        if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length); }
+        if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length / 4); }
 
         if (visiblePoints.length > 0) {
           const STRIDE = 4;
@@ -1011,7 +1007,8 @@ function updateSatellitePositions() {
       newTrails3D.push({
         lon, lat,
         altM: Math.min(altKm * 1000, 2000 * 1000),
-        fade: total > 1 ? idx / (total - 1) : 1.0
+        fade: total > 1 ? idx / (total - 1) : 1.0,
+        satId: sat.id
       });
     });
   });
