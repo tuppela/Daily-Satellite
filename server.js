@@ -260,4 +260,15 @@ app.get("*", serveIndex);
 
 app.listen(PORT, () => {
   console.log(`Orbital Register running on port ${PORT}`);
+
+  // Ping self every 10 minutes to prevent Render free tier sleep
+  const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+  if (SELF_URL) {
+    setInterval(() => {
+      fetch(`${SELF_URL}/api/test`)
+        .then(() => console.log("Self-ping OK"))
+        .catch(e => console.warn("Self-ping failed:", e.message));
+    }, 10 * 60 * 1000);
+    console.log(`Self-ping active → ${SELF_URL}`);
+  }
 });
