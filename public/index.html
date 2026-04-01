@@ -665,14 +665,24 @@ map.on("style.load", () => {
 let autoRotate = true;
 let isTracking = false;
 let trackedSatId = null;
-const EARTH_DEG_PER_SEC = 360 / 86164;
+const EARTH_DEG_PER_SEC = (360 / 86164) * 6; // 6× sidereal — perceptible but not cartoonish
 let lastRotateTime = performance.now();
 let animationRunning = false;
+let lastInteractionTime = 0;
+const RESUME_DELAY_MS = 4000; // resume rotation 4s after last interaction
 
 let lastSatUpdate = 0;
 
 function rotationLoop(timestamp) {
   if (!timestamp) { requestAnimationFrame(rotationLoop); return; }
+
+  // Resume rotation after idle period
+  if (!autoRotate && lastInteractionTime > 0 &&
+      (timestamp - lastInteractionTime) > RESUME_DELAY_MS) {
+    autoRotate = true;
+    lastRotateTime = timestamp; // reset so we don't get a jump
+  }
+
   if (autoRotate && !isTracking) {
     const delta = (timestamp - lastRotateTime) / 1000;
     const bearing = map.getBearing() - EARTH_DEG_PER_SEC * delta;
@@ -688,8 +698,14 @@ function rotationLoop(timestamp) {
   requestAnimationFrame(rotationLoop);
 }
 
-map.on("mousedown", () => { autoRotate = false; isTracking = false; trackedSatId = null; });
-// Don't intercept touchstart — let Mapbox handle mobile gestures natively
+map.on("mousedown", () => {
+  autoRotate = false;
+  isTracking = false;
+  trackedSatId = null;
+  lastInteractionTime = performance.now();
+});
+map.on("wheel",     () => { lastInteractionTime = performance.now(); autoRotate = false; });
+map.on("touchstart",() => { lastInteractionTime = performance.now(); autoRotate = false; });
 
 // ─── SATELLITE 3D POSITIONS (shared with WebGL layer) ────────────────────────
 let satPositions3D = [];   // [{lon, lat, altM, id, name}] updated each frame
@@ -1065,6 +1081,8 @@ function closePanel() {
   currentPanelSat = null;
   isTracking = false;
   trackedSatId = null;
+  autoRotate = true;
+  lastInteractionTime = 0;
   if (narratorAudio) { narratorAudio.pause(); narratorAudio = null; narratorPlaying = false; }
 }
 
