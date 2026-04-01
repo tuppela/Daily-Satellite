@@ -673,6 +673,7 @@ let animationRunning = false;
 let lastSatUpdate = 0;
 
 function rotationLoop(timestamp) {
+  if (!timestamp) { requestAnimationFrame(rotationLoop); return; }
   if (autoRotate && !isTracking) {
     const delta = (timestamp - lastRotateTime) / 1000;
     const bearing = map.getBearing() - EARTH_DEG_PER_SEC * delta;
@@ -680,7 +681,6 @@ function rotationLoop(timestamp) {
   }
   lastRotateTime = timestamp;
 
-  // Update satellite positions every 100ms — smooth but not excessive
   if (timestamp - lastSatUpdate > 100) {
     updateSatellitePositions();
     lastSatUpdate = timestamp;
@@ -690,7 +690,7 @@ function rotationLoop(timestamp) {
 }
 
 map.on("mousedown", () => { autoRotate = false; isTracking = false; trackedSatId = null; });
-map.on("touchstart", () => { autoRotate = false; isTracking = false; trackedSatId = null; });
+// Don't intercept touchstart — let Mapbox handle mobile gestures natively
 
 // ─── SATELLITE LAYERS ────────────────────────────────────────────────────────
 function initSatelliteLayers() {
@@ -1000,7 +1000,8 @@ document.getElementById("masthead").classList.add("visible");
 document.getElementById("season-indicator").classList.add("visible");
 
 map.on("load", async () => {
-  rotationLoop();
+  // Start animation loop properly
+  requestAnimationFrame(rotationLoop);
 
   document.getElementById("sat-count").textContent = "Fetching orbital data…";
   SATELLITES = await fetchLiveTLEs(SATELLITE_CATALOGUE);
