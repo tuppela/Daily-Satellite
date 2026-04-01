@@ -595,17 +595,34 @@ function propagateSatellite(tle1, tle2, date) {
   } catch(e) { return null; }
 }
 
-// Get trail points — past N minutes
-function getTrailPoints(tle1, tle2, minutes = 20) {
+// Get trail points — past N minutes, antimeridian-safe
+function getTrailPoints(tle1, tle2, minutes = 15) {
   const points = [];
   const now = Date.now();
-  const steps = 60;
+  const steps = 80;
   for (let i = steps; i >= 0; i--) {
     const t = new Date(now - (i / steps) * minutes * 60 * 1000);
     const pos = propagateSatellite(tle1, tle2, t);
     if (pos) points.push([pos.lon, pos.lat]);
   }
-  return points;
+
+  // Split trail at antimeridian crossings to prevent lines through Earth
+  const segments = [];
+  let current = [];
+  for (let i = 0; i < points.length; i++) {
+    if (i === 0) { current.push(points[i]); continue; }
+    const prev = points[i - 1];
+    const curr = points[i];
+    // If longitude jumps more than 180° it crossed the antimeridian
+    if (Math.abs(curr[0] - prev[0]) > 180) {
+      if (current.length > 1) segments.push(current);
+      current = [curr];
+    } else {
+      current.push(curr);
+    }
+  }
+  if (current.length > 1) segments.push(current);
+  return segments;
 }
 
 // ─── MAPBOX INIT ─────────────────────────────────────────────────────────────
@@ -755,15 +772,15 @@ function updateSatellitePositions() {
       properties: { id: sat.id, name: sat.name, desc: sat.desc }
     });
 
-    // Trail
-    const trail = getTrailPoints(sat.l1, sat.l2, 15);
-    if (trail.length > 1) {
+    // Trail — multiple segments to handle antimeridian
+    const segments = getTrailPoints(sat.l1, sat.l2, 15);
+    segments.forEach(seg => {
       trailFeatures.push({
         type: "Feature",
-        geometry: { type: "LineString", coordinates: trail },
+        geometry: { type: "LineString", coordinates: seg },
         properties: { id: sat.id }
       });
-    }
+    });
   });
 
   map.getSource("sat-dots").setData({ type: "FeatureCollection", features: dotFeatures });
