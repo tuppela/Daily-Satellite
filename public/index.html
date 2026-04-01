@@ -692,6 +692,86 @@ function rotationLoop(timestamp) {
 map.on("mousedown", () => { autoRotate = false; isTracking = false; trackedSatId = null; });
 // Don't intercept touchstart — let Mapbox handle mobile gestures natively
 
+// ─── SATELLITE 3D POSITIONS (shared with WebGL layer) ────────────────────────
+let satPositions3D = []; // [{lon, lat, altM}] updated each frame
+
+// ─── CUSTOM WEBGL LAYER — TRUE ALTITUDE DOTS ─────────────────────────────────
+function addSatellite3DLayer() {
+  const vertexSrc = `
+    attribute vec3 a_pos;
+    uniform mat4 u_matrix;
+    uniform float u_size;
+    void main() {
+      gl_Position = u_matrix * vec4(a_pos, 1.0);
+      // Scale point size by w so dots stay consistent size regardless of zoom
+      gl_PointSize = u_size * (1.0 / gl_Position.w) * 800.0;
+    }
+  `;
+  const fragmentSrc = `
+    precision mediump float;
+    void main() {
+      // Circular dot
+      vec2 c = gl_PointCoord - vec2(0.5);
+      if (dot(c, c) > 0.25) discard;
+      gl_FragColor = vec4(0.102, 0.086, 0.063, 0.92);
+    }
+  `;
+
+  const layer = {
+    id: "sat-dots-3d",
+    type: "custom",
+    onAdd(map, gl) {
+      const vert = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vert, vertexSrc);
+      gl.compileShader(vert);
+
+      const frag = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(frag, fragmentSrc);
+      gl.compileShader(frag);
+
+      this.program = gl.createProgram();
+      gl.attachShader(this.program, vert);
+      gl.attachShader(this.program, frag);
+      gl.linkProgram(this.program);
+
+      this.aPos = gl.getAttribLocation(this.program, "a_pos");
+      this.uMatrix = gl.getUniformLocation(this.program, "u_matrix");
+      this.uSize = gl.getUniformLocation(this.program, "u_size");
+
+      this.buffer = gl.createBuffer();
+    },
+    render(gl, matrix) {
+      if (!satPositions3D.length) return;
+
+      // Build flat [x,y,z, x,y,z, ...] array in Mercator coords
+      const data = new Float32Array(satPositions3D.length * 3);
+      satPositions3D.forEach((p, i) => {
+        const mc = mapboxgl.MercatorCoordinate.fromLngLat(
+          { lng: p.lon, lat: p.lat },
+          p.altM
+        );
+        data[i * 3]     = mc.x;
+        data[i * 3 + 1] = mc.y;
+        data[i * 3 + 2] = mc.z;
+      });
+
+      gl.useProgram(this.program);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(this.aPos);
+      gl.vertexAttribPointer(this.aPos, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(this.uMatrix, false, matrix);
+      gl.uniform1f(this.uSize, 4.5);
+
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.drawArrays(gl.POINTS, 0, satPositions3D.length);
+    }
+  };
+
+  map.addLayer(layer);
+}
+
 // ─── SATELLITE LAYERS ────────────────────────────────────────────────────────
 function initSatelliteLayers() {
   // Trails source
@@ -718,18 +798,22 @@ function initSatelliteLayers() {
     }
   });
 
-  // Satellite dots
+  // Satellite dots — invisible, used only for click/hover hit detection
+  // Actual rendering is done by the custom WebGL layer below
   map.addLayer({
     id: "sat-dots-layer",
     type: "circle",
     source: "sat-dots",
     paint: {
-      "circle-radius": 4,
+      "circle-radius": 6,
       "circle-color": "#1a1610",
-      "circle-opacity": 0.9,
+      "circle-opacity": 0,
       "circle-stroke-width": 0,
     }
   });
+
+  // Custom WebGL layer — renders satellite dots at true orbital altitude
+  addSatellite3DLayer();
 
   // Hover cursor
   map.on("mouseenter", "sat-dots-layer", () => { map.getCanvas().style.cursor = "pointer"; });
@@ -769,16 +853,21 @@ function updateSatellitePositions() {
   const now = new Date();
   const dotFeatures = [];
   const trailFeatures = [];
+  const newPositions3D = [];
 
   currentSatellites.forEach(sat => {
     const pos = propagateSatellite(sat.l1, sat.l2, now);
     if (!pos) return;
 
+    // GeoJSON feature — flat coords, used only for click/hover hit detection
     dotFeatures.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: [pos.lon, pos.lat] },
       properties: { id: sat.id, name: sat.name, desc: sat.desc }
     });
+
+    // 3D position — altitude in metres for WebGL layer
+    newPositions3D.push({ lon: pos.lon, lat: pos.lat, altM: pos.alt * 1000 });
 
     const segments = getTrailPoints(sat.l1, sat.l2, 15);
     segments.forEach(seg => {
@@ -790,8 +879,10 @@ function updateSatellitePositions() {
     });
   });
 
+  satPositions3D = newPositions3D;
   map.getSource("sat-dots").setData({ type: "FeatureCollection", features: dotFeatures });
   map.getSource("sat-trails").setData({ type: "FeatureCollection", features: trailFeatures });
+  map.triggerRepaint();
 
   if (isTracking && trackedSatId) {
     const sat = currentSatellites.find(s => s.id === trackedSatId);
