@@ -106,6 +106,14 @@
       line-height: 1.7;
     }
 
+    /* Label canvas overlay */
+    #label-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 55;
+    }
+
     /* Satellite tooltip */
     #sat-tooltip {
       position: fixed;
@@ -422,6 +430,7 @@
 <body>
 
 <div id="map"></div>
+<canvas id="label-canvas"></canvas>
 <div id="grain"></div>
 
 <div id="masthead">
@@ -740,6 +749,25 @@ let satPositions3D = [];   // [{lon, lat, altM, id, name}] updated each frame
 let satTrails3D = [];      // flat array of {lon,lat,altM} for all trail points
 let satTrailSegments = []; // vertex count per satellite (for LINE_STRIP draws)
 
+// ─── VISIBILITY CULL (module scope — used by WebGL layer and label canvas) ────
+function isVisible(lon, lat, altM = 0) {
+  const center = map.getCenter();
+  const camLat = center.lat * Math.PI / 180;
+  const camLon = center.lng * Math.PI / 180;
+  const cx = Math.cos(camLat) * Math.cos(camLon);
+  const cy = Math.cos(camLat) * Math.sin(camLon);
+  const cz = Math.sin(camLat);
+  const phi = lat * Math.PI / 180;
+  const lam = lon * Math.PI / 180;
+  const px = Math.cos(phi) * Math.cos(lam);
+  const py = Math.cos(phi) * Math.sin(lam);
+  const pz = Math.sin(phi);
+  const dot = px * cx + py * cy + pz * cz;
+  const R = 6371000;
+  const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
+  return dot > threshold;
+}
+
 // ─── CUSTOM WEBGL LAYER — TRUE ALTITUDE DOTS + FADING TRAIL POINTS ───────────
 function addSatellite3DLayer() {
 
@@ -820,34 +848,10 @@ function addSatellite3DLayer() {
     render(gl, matrix) {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-      // Depth test against Mapbox's globe geometry — culls points behind Earth
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthMask(false);        // don't write to depth buffer (we're additive on top)
-      gl.depthFunc(gl.LEQUAL);    // pass if at or in front of existing depth
+      gl.depthMask(false);
 
       // ── Horizon cull: skip points on the back hemisphere ──────────────────
-      // Camera is pointing at map.getCenter(). Any point whose great-circle
-      // angle from center > 90° is behind the globe — discard it.
-      const center = map.getCenter();
-      const camLat = center.lat * Math.PI / 180;
-      const camLon = center.lng * Math.PI / 180;
-      // Camera vector in 3D (unit sphere)
-      const cx = Math.cos(camLat) * Math.cos(camLon);
-      const cy = Math.cos(camLat) * Math.sin(camLon);
-      const cz = Math.sin(camLat);
-
-      function isVisible(lon, lat, altM = 0) {
-        const phi = lat * Math.PI / 180;
-        const lam = lon * Math.PI / 180;
-        const px = Math.cos(phi) * Math.cos(lam);
-        const py = Math.cos(phi) * Math.sin(lam);
-        const pz = Math.sin(phi);
-        const dot = px * cx + py * cy + pz * cz;
-        const R = 6371000;
-        const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
-        return dot > threshold;
-      }
+      // isVisible() is module-scope, uses map.getCenter() each call
 
       // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
       if (satTrails3D.length > 0) {
@@ -896,8 +900,7 @@ function addSatellite3DLayer() {
         }
       }
 
-      // ── Satellite dots — no depth test, always render on top ──────────────
-      gl.disable(gl.DEPTH_TEST);
+      // ── Satellite dots — horizon culled ────────────────────────────────────
       const visibleDots = satPositions3D.filter(p => isVisible(p.lon, p.lat, p.altM));
       if (!visibleDots.length) {
         gl.depthMask(true);
@@ -923,9 +926,8 @@ function addSatellite3DLayer() {
       gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
       gl.drawArrays(gl.POINTS, 0, visibleDots.length);
 
-      // Restore GL state for Mapbox
+      // Restore GL state
       gl.depthMask(true);
-      gl.disable(gl.DEPTH_TEST);
     }
   };
 
@@ -952,15 +954,33 @@ function initSatelliteLayers() {
   const tooltip = document.getElementById("sat-tooltip");
   const tooltipName = document.getElementById("sat-tooltip-name");
   const canvas = map.getCanvas();
-  const HIT_RADIUS = 18; // px — generous to account for 25px dot size
+  const HIT_RADIUS = 22; // px
+
+  // Project a MercatorCoordinate through Mapbox's camera matrix → screen px
+  function mercatorToScreen(mc) {
+    const m = map.transform.projMatrix;
+    const x = mc.x, y = mc.y, z = mc.z || 0;
+    // MVP multiply (row-major)
+    const rx = m[0]*x + m[4]*y + m[8]*z  + m[12];
+    const ry = m[1]*x + m[5]*y + m[9]*z  + m[13];
+    const rw = m[3]*x + m[7]*y + m[11]*z + m[15];
+    if (rw <= 0) return null; // behind camera
+    const ndcX = rx / rw;
+    const ndcY = ry / rw;
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    return {
+      x: (ndcX * 0.5 + 0.5) * cw,
+      y: (1 - (ndcY * 0.5 + 0.5)) * ch
+    };
+  }
 
   function getSatScreenPositions() {
     return satPositions3D.map((p, i) => {
       const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-      const screen = map.project([p.lon, p.lat]); // approximate 2D projection for hit test
-      // For a closer approximation we use the unprojected screen point — good enough for hover
+      const screen = mercatorToScreen(mc);
       return { screen, sat: currentSatellites[i] };
-    }).filter(x => x.sat);
+    }).filter(x => x.screen && x.sat);
   }
 
   function findHitSat(mouseX, mouseY) {
@@ -997,7 +1017,54 @@ function initSatelliteLayers() {
     canvas.style.cursor = "";
   });
 
-  canvas.addEventListener("click", (e) => {
+  // ── Label canvas — draws satellite names on every frame ───────────────────
+  const labelCanvas = document.getElementById("label-canvas");
+  const lctx = labelCanvas.getContext("2d");
+
+  function resizeLabelCanvas() {
+    labelCanvas.width  = window.innerWidth;
+    labelCanvas.height = window.innerHeight;
+  }
+  resizeLabelCanvas();
+  window.addEventListener("resize", resizeLabelCanvas);
+
+  function drawLabels() {
+    lctx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+    if (!satPositions3D.length || !map.transform) return;
+
+    satPositions3D.forEach((p, i) => {
+      if (!isVisible(p.lon, p.lat, p.altM)) return;
+      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+      const screen = mercatorToScreen(mc);
+      if (!screen) return;
+
+      const sat = currentSatellites[i];
+      if (!sat) return;
+
+      const label = sat.name.toUpperCase();
+      const x = Math.round(screen.x);
+      const y = Math.round(screen.y);
+      const offsetX = 16;
+      const offsetY = -6;
+
+      lctx.font = "700 8px 'Source Code Pro', monospace";
+      lctx.letterSpacing = "0.15em";
+
+      // Background pill
+      const tw = lctx.measureText(label).width + 10;
+      lctx.fillStyle = "rgba(240, 235, 224, 0.82)";
+      lctx.beginPath();
+      lctx.roundRect(x + offsetX - 4, y + offsetY - 9, tw, 14, 2);
+      lctx.fill();
+
+      // Label text
+      lctx.fillStyle = "rgba(26, 22, 16, 0.85)";
+      lctx.fillText(label, x + offsetX + 1, y + offsetY + 1);
+    });
+
+    requestAnimationFrame(drawLabels);
+  }
+  drawLabels();
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
