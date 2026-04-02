@@ -958,6 +958,7 @@ function initSatelliteLayers() {
 
   // Project a MercatorCoordinate through Mapbox's camera matrix → screen px
   function mercatorToScreen(mc) {
+    if (!map.transform || !map.transform.projMatrix) return null;
     const m = map.transform.projMatrix;
     const x = mc.x, y = mc.y, z = mc.z || 0;
     // MVP multiply (row-major)
@@ -1029,39 +1030,38 @@ function initSatelliteLayers() {
   window.addEventListener("resize", resizeLabelCanvas);
 
   function drawLabels() {
-    lctx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
-    if (!satPositions3D.length || !map.transform) return;
+    try {
+      lctx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+      if (!satPositions3D.length || !map.transform) { requestAnimationFrame(drawLabels); return; }
 
-    satPositions3D.forEach((p, i) => {
-      if (!isVisible(p.lon, p.lat, p.altM)) return;
-      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-      const screen = mercatorToScreen(mc);
-      if (!screen) return;
+      satPositions3D.forEach((p, i) => {
+        if (!isVisible(p.lon, p.lat, p.altM)) return;
+        const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+        const screen = mercatorToScreen(mc);
+        if (!screen) return;
 
-      const sat = currentSatellites[i];
-      if (!sat) return;
+        const sat = currentSatellites[i];
+        if (!sat) return;
 
-      const label = sat.name.toUpperCase();
-      const x = Math.round(screen.x);
-      const y = Math.round(screen.y);
-      const offsetX = 16;
-      const offsetY = -6;
+        const label = sat.name.toUpperCase();
+        const x = Math.round(screen.x);
+        const y = Math.round(screen.y);
+        const offsetX = 16;
+        const offsetY = -6;
 
-      lctx.font = "700 8px 'Source Code Pro', monospace";
-      lctx.letterSpacing = "0.15em";
+        lctx.font = "700 8px 'Source Code Pro', monospace";
 
-      // Background pill
-      const tw = lctx.measureText(label).width + 10;
-      lctx.fillStyle = "rgba(240, 235, 224, 0.82)";
-      lctx.beginPath();
-      lctx.roundRect(x + offsetX - 4, y + offsetY - 9, tw, 14, 2);
-      lctx.fill();
+        const tw = lctx.measureText(label).width + 10;
+        // Background pill — use fillRect for broad browser support
+        lctx.fillStyle = "rgba(240, 235, 224, 0.88)";
+        lctx.fillRect(x + offsetX - 4, y + offsetY - 9, tw, 14);
 
-      // Label text
-      lctx.fillStyle = "rgba(26, 22, 16, 0.85)";
-      lctx.fillText(label, x + offsetX + 1, y + offsetY + 1);
-    });
-
+        lctx.fillStyle = "rgba(26, 22, 16, 0.85)";
+        lctx.fillText(label, x + offsetX + 1, y + offsetY + 1);
+      });
+    } catch(e) {
+      // swallow — never crash the RAF loop
+    }
     requestAnimationFrame(drawLabels);
   }
   drawLabels();
