@@ -643,7 +643,31 @@ const map = new mapboxgl.Map({
   maxZoom: 18,
   attributionControl: false,
   logoPosition: "bottom-left",
+  scrollZoom: false,  // we handle scroll manually for custom curve
 });
+
+// Custom scroll zoom: fast from space → globe, progressively resistant near surface
+window.addEventListener("wheel", (e) => {
+  if (!map) return;
+  e.preventDefault();
+  const currentZoom = map.getZoom();
+  const delta = -e.deltaY;
+
+  // Resistance curve: full speed above zoom 4, slows down below
+  // At zoom 10 you need ~4x more scroll to move the same zoom delta
+  const resistance = currentZoom > 4
+    ? 1.0
+    : currentZoom > 2
+      ? 0.5
+      : 0.25;
+
+  const zoomDelta = (delta / 200) * resistance * (currentZoom > 4 ? 2.5 : 1.5);
+  map.easeTo({
+    zoom: Math.max(0.5, Math.min(18, currentZoom + zoomDelta)),
+    duration: 80,
+    easing: t => t,
+  });
+}, { passive: false });
 
 // Colour grading to match Cesium/Bing warmth
 map.on("style.load", () => {
@@ -872,7 +896,8 @@ function addSatellite3DLayer() {
         }
       }
 
-      // ── Satellite dots — culled to visible hemisphere ──────────────────────
+      // ── Satellite dots — no depth test, always render on top ──────────────
+      gl.disable(gl.DEPTH_TEST);
       const visibleDots = satPositions3D.filter(p => isVisible(p.lon, p.lat, p.altM));
       if (!visibleDots.length) {
         gl.depthMask(true);
