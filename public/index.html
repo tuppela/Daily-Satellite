@@ -106,12 +106,24 @@
       line-height: 1.7;
     }
 
-    /* Label canvas overlay */
-    #label-canvas {
+    /* Satellite labels */
+    #label-container {
       position: fixed;
       inset: 0;
       pointer-events: none;
       z-index: 55;
+    }
+    .sat-label {
+      position: absolute;
+      font-family: var(--sc);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: rgba(26, 22, 16, 0.85);
+      background: rgba(240, 235, 224, 0.88);
+      padding: 2px 5px;
+      white-space: nowrap;
+      transform: translate(14px, -10px);
     }
 
     /* Satellite tooltip */
@@ -430,7 +442,7 @@
 <body>
 
 <div id="map"></div>
-<canvas id="label-canvas"></canvas>
+<div id="label-container"></div>
 <div id="grain"></div>
 
 <div id="masthead">
@@ -1018,53 +1030,46 @@ function initSatelliteLayers() {
     canvas.style.cursor = "";
   });
 
-  // ── Label canvas — draws satellite names on every frame ───────────────────
-  const labelCanvas = document.getElementById("label-canvas");
-  const lctx = labelCanvas.getContext("2d");
+  // ── Label divs — one per satellite, positioned via transform ─────────────
+  const labelContainer = document.getElementById("label-container");
+  const labelEls = {};
 
-  function resizeLabelCanvas() {
-    labelCanvas.width  = window.innerWidth;
-    labelCanvas.height = window.innerHeight;
+  currentSatellites.forEach(sat => {
+    const el = document.createElement("div");
+    el.className = "sat-label";
+    el.textContent = sat.name.toUpperCase();
+    el.style.display = "none";
+    labelContainer.appendChild(el);
+    labelEls[sat.id] = el;
+  });
+
+  function updateLabels() {
+    if (!map.transform) { requestAnimationFrame(updateLabels); return; }
+
+    satPositions3D.forEach((p, i) => {
+      const sat = currentSatellites[i];
+      if (!sat) return;
+      const el = labelEls[sat.id];
+      if (!el) return;
+
+      if (!isVisible(p.lon, p.lat, p.altM)) {
+        el.style.display = "none";
+        return;
+      }
+
+      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+      const screen = mercatorToScreen(mc);
+      if (!screen) { el.style.display = "none"; return; }
+
+      el.style.display = "block";
+      el.style.left = screen.x + "px";
+      el.style.top  = screen.y + "px";
+    });
+
+    requestAnimationFrame(updateLabels);
   }
-  resizeLabelCanvas();
-  window.addEventListener("resize", resizeLabelCanvas);
-
-  function drawLabels() {
-    try {
-      lctx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
-      if (!satPositions3D.length || !map.transform) { requestAnimationFrame(drawLabels); return; }
-
-      satPositions3D.forEach((p, i) => {
-        if (!isVisible(p.lon, p.lat, p.altM)) return;
-        const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-        const screen = mercatorToScreen(mc);
-        if (!screen) return;
-
-        const sat = currentSatellites[i];
-        if (!sat) return;
-
-        const label = sat.name.toUpperCase();
-        const x = Math.round(screen.x);
-        const y = Math.round(screen.y);
-        const offsetX = 16;
-        const offsetY = -6;
-
-        lctx.font = "700 8px 'Source Code Pro', monospace";
-
-        const tw = lctx.measureText(label).width + 10;
-        // Background pill — use fillRect for broad browser support
-        lctx.fillStyle = "rgba(240, 235, 224, 0.88)";
-        lctx.fillRect(x + offsetX - 4, y + offsetY - 9, tw, 14);
-
-        lctx.fillStyle = "rgba(26, 22, 16, 0.85)";
-        lctx.fillText(label, x + offsetX + 1, y + offsetY + 1);
-      });
-    } catch(e) {
-      // swallow — never crash the RAF loop
-    }
-    requestAnimationFrame(drawLabels);
-  }
-  drawLabels();
+  updateLabels();
+  updateLabels();
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
