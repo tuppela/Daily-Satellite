@@ -937,10 +937,10 @@ function initSatelliteLayers() {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] }
   });
-
   addSatellite3DLayer();
+}
 
-  // ── Satellite label divs ──────────────────────────────────────────────────
+function initSatelliteLabels() {
   const labelContainer = document.getElementById("sat-labels");
   const labelEls = {};
 
@@ -950,7 +950,6 @@ function initSatelliteLayers() {
     el.textContent = sat.name.toUpperCase();
     el.style.display = "none";
     el.addEventListener("click", () => {
-      // Mark this label as tracked (hides it), open panel
       Object.values(labelEls).forEach(l => l.classList.remove("tracked"));
       el.classList.add("tracked");
       document.getElementById("daily-card").classList.remove("visible");
@@ -961,10 +960,8 @@ function initSatelliteLayers() {
     labelEls[sat.id] = el;
   });
 
-  // Expose so closePanel can restore labels
   window._satLabelEls = labelEls;
 
-  // ── Position labels each frame ────────────────────────────────────────────
   function updateLabels() {
     if (!map.transform || !satPositions3D.length) {
       requestAnimationFrame(updateLabels);
@@ -1239,6 +1236,7 @@ map.on("load", async () => {
   document.getElementById("sat-count").textContent = "Fetching orbital data…";
   SATELLITES = await fetchLiveTLEs(SATELLITE_CATALOGUE);
   currentSatellites = SATELLITES;
+  initSatelliteLabels();
 
   document.getElementById("sat-count").textContent = `${SATELLITES.length} objects tracked`;
   document.getElementById("sat-count").classList.add("visible");
