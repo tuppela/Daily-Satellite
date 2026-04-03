@@ -106,6 +106,32 @@
       line-height: 1.7;
     }
 
+    /* Satellite labels */
+    #sat-labels {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 55;
+    }
+    .sat-label {
+      position: absolute;
+      font-family: var(--sc);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: rgba(26, 22, 16, 0.9);
+      background: rgba(240, 235, 224, 0.85);
+      padding: 3px 6px;
+      white-space: nowrap;
+      pointer-events: auto;
+      cursor: pointer;
+      transform: translate(0, -50%);
+      border: 1px solid rgba(26,22,16,0.12);
+      transition: opacity 0.2s;
+    }
+    .sat-label:hover { background: rgba(240, 235, 224, 1); }
+    .sat-label.tracked { display: none !important; }
+
     /* Satellite tooltip */
     #sat-tooltip {
       position: fixed;
@@ -422,6 +448,7 @@
 <body>
 
 <div id="map"></div>
+<div id="sat-labels"></div>
 <div id="grain"></div>
 
 <div id="masthead">
@@ -896,36 +923,8 @@ function addSatellite3DLayer() {
         }
       }
 
-      // ── Satellite dots — no depth test, always render on top ──────────────
-      gl.disable(gl.DEPTH_TEST);
-      const visibleDots = satPositions3D.filter(p => isVisible(p.lon, p.lat, p.altM));
-      if (!visibleDots.length) {
-        gl.depthMask(true);
-        gl.disable(gl.DEPTH_TEST);
-        return;
-      }
-
-      const dotData = new Float32Array(visibleDots.length * 3);
-      visibleDots.forEach((p, i) => {
-        const mc = mapboxgl.MercatorCoordinate.fromLngLat(
-          { lng: p.lon, lat: p.lat }, p.altM
-        );
-        dotData[i * 3]     = mc.x;
-        dotData[i * 3 + 1] = mc.y;
-        dotData[i * 3 + 2] = mc.z;
-      });
-
-      gl.useProgram(this.dotProg);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, dotData, gl.DYNAMIC_DRAW);
-      gl.enableVertexAttribArray(this.dot_aPos);
-      gl.vertexAttribPointer(this.dot_aPos, 3, gl.FLOAT, false, 0, 0);
-      gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
-      gl.drawArrays(gl.POINTS, 0, visibleDots.length);
-
-      // Restore GL state for Mapbox
+      // Dots replaced by HTML labels — restore GL state and done
       gl.depthMask(true);
-      gl.disable(gl.DEPTH_TEST);
     }
   };
 
@@ -934,79 +933,76 @@ function addSatellite3DLayer() {
 
 // ─── SATELLITE LAYERS ────────────────────────────────────────────────────────
 function initSatelliteLayers() {
-  // sat-dots source kept for backward compatibility but no longer rendered
   map.addSource("sat-dots", {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] }
   });
 
-  // Custom WebGL layer handles both trails and dots at true altitude
   addSatellite3DLayer();
 
-  // ── Canvas-space hover + click hit detection ───────────────────────────────
-  // We can't use Mapbox's layer events because our dots are WebGL points at
-  // altitude — they don't exist in the GeoJSON hit tree. Instead we project
-  // each satellite's 3D Mercator position to screen space each frame and do
-  // a simple distance check on mousemove/click.
+  // ── Satellite label divs ──────────────────────────────────────────────────
+  const labelContainer = document.getElementById("sat-labels");
+  const labelEls = {};
 
-  const tooltip = document.getElementById("sat-tooltip");
-  const tooltipName = document.getElementById("sat-tooltip-name");
-  const canvas = map.getCanvas();
-  const HIT_RADIUS = 18; // px — generous to account for 25px dot size
-
-  function getSatScreenPositions() {
-    return satPositions3D.map((p, i) => {
-      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-      const screen = map.project([p.lon, p.lat]); // approximate 2D projection for hit test
-      // For a closer approximation we use the unprojected screen point — good enough for hover
-      return { screen, sat: currentSatellites[i] };
-    }).filter(x => x.sat);
-  }
-
-  function findHitSat(mouseX, mouseY) {
-    let closest = null;
-    let minDist = HIT_RADIUS;
-    getSatScreenPositions().forEach(({ screen, sat }) => {
-      const dx = screen.x - mouseX;
-      const dy = screen.y - mouseY;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < minDist) { minDist = d; closest = sat; }
+  currentSatellites.forEach(sat => {
+    const el = document.createElement("div");
+    el.className = "sat-label";
+    el.textContent = sat.name.toUpperCase();
+    el.style.display = "none";
+    el.addEventListener("click", () => {
+      // Mark this label as tracked (hides it), open panel
+      Object.values(labelEls).forEach(l => l.classList.remove("tracked"));
+      el.classList.add("tracked");
+      document.getElementById("daily-card").classList.remove("visible");
+      openPanel(sat);
+      flyToSatellite(sat);
     });
-    return closest;
-  }
+    labelContainer.appendChild(el);
+    labelEls[sat.id] = el;
+  });
 
-  canvas.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const sat = findHitSat(mx, my);
-    if (sat) {
-      tooltipName.textContent = sat.name;
-      tooltip.style.left = mx + "px";
-      tooltip.style.top = (my - 36) + "px";
-      tooltip.classList.add("visible");
-      canvas.style.cursor = "pointer";
-    } else {
-      tooltip.classList.remove("visible");
-      canvas.style.cursor = "";
+  // Expose so closePanel can restore labels
+  window._satLabelEls = labelEls;
+
+  // ── Position labels each frame ────────────────────────────────────────────
+  function updateLabels() {
+    if (!map.transform || !satPositions3D.length) {
+      requestAnimationFrame(updateLabels);
+      return;
     }
-  });
+    const m = map.transform.projMatrix;
+    const cw = window.innerWidth;
+    const ch = window.innerHeight;
 
-  canvas.addEventListener("mouseleave", () => {
-    tooltip.classList.remove("visible");
-    canvas.style.cursor = "";
-  });
+    satPositions3D.forEach((p, i) => {
+      const sat = currentSatellites[i];
+      if (!sat) return;
+      const el = labelEls[sat.id];
+      if (!el || el.classList.contains("tracked")) return;
 
-  canvas.addEventListener("click", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const sat = findHitSat(mx, my);
-    if (!sat) return;
-    document.getElementById("daily-card").classList.remove("visible");
-    openPanel(sat);
-    flyToSatellite(sat);
-  });
+      if (!isVisible(p.lon, p.lat, p.altM)) {
+        el.style.display = "none";
+        return;
+      }
+
+      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+      const x = mc.x, y = mc.y, z = mc.z || 0;
+      const rx = m[0]*x + m[4]*y + m[8]*z  + m[12];
+      const ry = m[1]*x + m[5]*y + m[9]*z  + m[13];
+      const rw = m[3]*x + m[7]*y + m[11]*z + m[15];
+      if (rw <= 0) { el.style.display = "none"; return; }
+
+      const sx = ((rx/rw) * 0.5 + 0.5) * cw;
+      const sy = (1 - ((ry/rw) * 0.5 + 0.5)) * ch;
+
+      el.style.display = "block";
+      el.style.left = sx + "px";
+      el.style.top  = sy + "px";
+    });
+
+    requestAnimationFrame(updateLabels);
+  }
+  updateLabels();
 }
 
 function updateSatellitePositions() {
@@ -1169,6 +1165,10 @@ function closePanel() {
   trackedSatId = null;
   autoRotate = true;
   lastInteractionTime = 0;
+  // Restore all labels
+  if (window._satLabelEls) {
+    Object.values(window._satLabelEls).forEach(el => el.classList.remove("tracked"));
+  }
   if (narratorAudio) { narratorAudio.pause(); narratorAudio = null; narratorPlaying = false; }
 }
 
