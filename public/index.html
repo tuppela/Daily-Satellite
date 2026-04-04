@@ -767,6 +767,25 @@ let satPositions3D = [];   // [{lon, lat, altM, id, name}] updated each frame
 let satTrails3D = [];      // flat array of {lon,lat,altM} for all trail points
 let satTrailSegments = []; // vertex count per satellite (for LINE_STRIP draws)
 
+// ─── VISIBILITY CULL — module scope, used by WebGL layer and label loop ──────
+function isVisible(lon, lat, altM = 0) {
+  const center = map.getCenter();
+  const camLat = center.lat * Math.PI / 180;
+  const camLon = center.lng * Math.PI / 180;
+  const cx = Math.cos(camLat) * Math.cos(camLon);
+  const cy = Math.cos(camLat) * Math.sin(camLon);
+  const cz = Math.sin(camLat);
+  const phi = lat * Math.PI / 180;
+  const lam = lon * Math.PI / 180;
+  const px = Math.cos(phi) * Math.cos(lam);
+  const py = Math.cos(phi) * Math.sin(lam);
+  const pz = Math.sin(phi);
+  const dot = px * cx + py * cy + pz * cz;
+  const R = 6371000;
+  const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
+  return dot > threshold;
+}
+
 // ─── CUSTOM WEBGL LAYER — TRUE ALTITUDE DOTS + FADING TRAIL POINTS ───────────
 function addSatellite3DLayer() {
 
@@ -853,28 +872,7 @@ function addSatellite3DLayer() {
       gl.depthMask(false);        // don't write to depth buffer (we're additive on top)
       gl.depthFunc(gl.LEQUAL);    // pass if at or in front of existing depth
 
-      // ── Horizon cull: skip points on the back hemisphere ──────────────────
-      // Camera is pointing at map.getCenter(). Any point whose great-circle
-      // angle from center > 90° is behind the globe — discard it.
-      const center = map.getCenter();
-      const camLat = center.lat * Math.PI / 180;
-      const camLon = center.lng * Math.PI / 180;
-      // Camera vector in 3D (unit sphere)
-      const cx = Math.cos(camLat) * Math.cos(camLon);
-      const cy = Math.cos(camLat) * Math.sin(camLon);
-      const cz = Math.sin(camLat);
-
-      function isVisible(lon, lat, altM = 0) {
-        const phi = lat * Math.PI / 180;
-        const lam = lon * Math.PI / 180;
-        const px = Math.cos(phi) * Math.cos(lam);
-        const py = Math.cos(phi) * Math.sin(lam);
-        const pz = Math.sin(phi);
-        const dot = px * cx + py * cy + pz * cz;
-        const R = 6371000;
-        const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
-        return dot > threshold;
-      }
+      // ── Horizon cull via module-scope isVisible() ──────────────────────────
 
       // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
       if (satTrails3D.length > 0) {
@@ -963,13 +961,10 @@ function initSatelliteLabels() {
   window._satLabelEls = labelEls;
 
   function updateLabels() {
-    if (!map.transform || !satPositions3D.length) {
+    if (!satPositions3D.length) {
       requestAnimationFrame(updateLabels);
       return;
     }
-    const m = map.transform.projMatrix;
-    const cw = window.innerWidth;
-    const ch = window.innerHeight;
 
     satPositions3D.forEach((p, i) => {
       const sat = currentSatellites[i];
@@ -982,19 +977,11 @@ function initSatelliteLabels() {
         return;
       }
 
-      const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-      const x = mc.x, y = mc.y, z = mc.z || 0;
-      const rx = m[0]*x + m[4]*y + m[8]*z  + m[12];
-      const ry = m[1]*x + m[5]*y + m[9]*z  + m[13];
-      const rw = m[3]*x + m[7]*y + m[11]*z + m[15];
-      if (rw <= 0) { el.style.display = "none"; return; }
-
-      const sx = ((rx/rw) * 0.5 + 0.5) * cw;
-      const sy = (1 - ((ry/rw) * 0.5 + 0.5)) * ch;
-
+      // map.project gives surface position — good enough for label placement
+      const screen = map.project([p.lon, p.lat]);
       el.style.display = "block";
-      el.style.left = sx + "px";
-      el.style.top  = sy + "px";
+      el.style.left = screen.x + "px";
+      el.style.top  = screen.y + "px";
     });
 
     requestAnimationFrame(updateLabels);
