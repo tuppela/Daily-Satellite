@@ -940,6 +940,9 @@ function initSatelliteLayers() {
 
 function initSatelliteLabels() {
   const labelContainer = document.getElementById("sat-labels");
+  if (!labelContainer) { console.error("sat-labels container not found"); return; }
+  console.log("initSatelliteLabels called, satellites:", currentSatellites.length);
+
   const labelEls = {};
 
   currentSatellites.forEach(sat => {
@@ -960,10 +963,15 @@ function initSatelliteLabels() {
 
   window._satLabelEls = labelEls;
 
+  let labelDebugLogged = false;
   function updateLabels() {
     if (!satPositions3D.length) {
       requestAnimationFrame(updateLabels);
       return;
+    }
+    if (!labelDebugLogged) {
+      console.log("updateLabels running, positions:", satPositions3D.length, "labelEls:", Object.keys(labelEls).length);
+      labelDebugLogged = true;
     }
 
     satPositions3D.forEach((p, i) => {
