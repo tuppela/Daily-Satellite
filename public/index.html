@@ -762,35 +762,27 @@ map.on("mousedown", () => {
 map.on("wheel",     () => { lastInteractionTime = performance.now(); autoRotate = false; });
 map.on("touchstart",() => { lastInteractionTime = performance.now(); autoRotate = false; });
 
-// ─── SATELLITE 3D POSITIONS (shared with WebGL layer) ────────────────────────
-let satPositions3D = [];   // [{lon, lat, altM, id, name}] updated each frame
-let satTrails3D = [];      // flat array of {lon,lat,altM} for all trail points
-let satTrailSegments = []; // vertex count per satellite (for LINE_STRIP draws)
+// ─── SATELLITE DATA ───────────────────────────────────────────────────────────
+let satPositions3D = []; // [{lon, lat, altM}] — one per satellite, same index as currentSatellites
+let satTrailRaw = [];    // [[seg, seg, ...], ...] — per satellite, per antimeridian-segment
+                         // each seg = [[lon, lat, altKm], ...] raw from getTrailPoints
 
-// ─── VISIBILITY CULL — module scope, used by WebGL layer and label loop ──────
-function isVisible(lon, lat, altM = 0) {
-  const center = map.getCenter();
-  const camLat = center.lat * Math.PI / 180;
-  const camLon = center.lng * Math.PI / 180;
-  const cx = Math.cos(camLat) * Math.cos(camLon);
-  const cy = Math.cos(camLat) * Math.sin(camLon);
-  const cz = Math.sin(camLat);
-  const phi = lat * Math.PI / 180;
-  const lam = lon * Math.PI / 180;
-  const px = Math.cos(phi) * Math.cos(lam);
-  const py = Math.cos(phi) * Math.sin(lam);
-  const pz = Math.sin(phi);
-  const dot = px * cx + py * cy + pz * cz;
-  const R = 6371000;
-  const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) * 0.7 : 0.05;
-  return dot > threshold;
+// ─── VISIBILITY CULL (for labels — called per label per frame) ────────────────
+function isVisible(lon, lat) {
+  const c = map.getCenter();
+  const cl = c.lat * Math.PI / 180, cn = c.lng * Math.PI / 180;
+  const cx = Math.cos(cl)*Math.cos(cn), cy = Math.cos(cl)*Math.sin(cn), cz = Math.sin(cl);
+  const phi = lat * Math.PI / 180, lam = lon * Math.PI / 180;
+  return Math.cos(phi)*Math.cos(lam)*cx + Math.cos(phi)*Math.sin(lam)*cy + Math.sin(phi)*cz > 0.08;
 }
 
-// ─── CUSTOM WEBGL LAYER — TRUE ALTITUDE DOTS + FADING TRAIL POINTS ───────────
+// ─── WEBGL SATELLITE LAYER ────────────────────────────────────────────────────
+// Trails: one LINE_STRIP draw call per visible segment per satellite.
+// No shared buffers, no offset math, no flat arrays with satId tracking.
+// Visibility computed per-point in render with camera direction evaluated once per frame.
 function addSatellite3DLayer() {
 
-  // ── Trail vertex: position + fade value ───────────────────────────────────
-  const trailVertSrc = `
+  const trailVert = `
     attribute vec3 a_pos;
     attribute float a_fade;
     varying float v_fade;
@@ -798,150 +790,146 @@ function addSatellite3DLayer() {
     void main() {
       gl_Position = u_matrix * vec4(a_pos, 1.0);
       v_fade = a_fade;
-    }
-  `;
+    }`;
 
-  const trailFragSrc = `
+  const trailFrag = `
     precision mediump float;
     varying float v_fade;
     void main() {
-      gl_FragColor = vec4(0.102, 0.086, 0.063, v_fade * 0.55);
-    }
-  `;
+      gl_FragColor = vec4(0.102, 0.086, 0.063, v_fade * 0.6);
+    }`;
 
-  // ── Dot vertex: fixed 25px screen-space point ─────────────────────────────
-  const dotVertSrc = `
+  const dotVert = `
     attribute vec3 a_pos;
     uniform mat4 u_matrix;
     void main() {
       gl_Position = u_matrix * vec4(a_pos, 1.0);
       gl_PointSize = 25.0;
-    }
-  `;
+    }`;
 
-  const dotFragSrc = `
+  const dotFrag = `
     precision mediump float;
     void main() {
       vec2 c = gl_PointCoord - vec2(0.5);
-      float dist = length(c);
-      if (dist > 0.5) discard;
-      // 2px border = ~0.08 in 0..0.5 range (2/25)
-      if (dist > 0.5 - 0.08) {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-      } else {
-        gl_FragColor = vec4(0.941, 0.922, 0.878, 1.0);
-      }
-    }
-  `;
+      float d = length(c);
+      if (d > 0.5) discard;
+      gl_FragColor = d > 0.42
+        ? vec4(0.0, 0.0, 0.0, 1.0)
+        : vec4(0.941, 0.922, 0.878, 1.0);
+    }`;
 
-  function makeProgram(gl, vSrc, fSrc) {
+  function makeProgram(gl, vs, fs) {
     const v = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(v, vSrc); gl.compileShader(v);
+    gl.shaderSource(v, vs); gl.compileShader(v);
     const f = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(f, fSrc); gl.compileShader(f);
+    gl.shaderSource(f, fs); gl.compileShader(f);
     const p = gl.createProgram();
     gl.attachShader(p, v); gl.attachShader(p, f); gl.linkProgram(p);
     return p;
   }
 
-  const layer = {
-    id: "sat-dots-3d",
+  map.addLayer({
+    id: "sat-3d",
     type: "custom",
 
     onAdd(map, gl) {
-      this.trailProg = makeProgram(gl, trailVertSrc, trailFragSrc);
-      this.dotProg   = makeProgram(gl, dotVertSrc,   dotFragSrc);
+      this.tp = makeProgram(gl, trailVert, trailFrag);
+      this.dp = makeProgram(gl, dotVert,   dotFrag);
 
-      this.trail_aPos    = gl.getAttribLocation(this.trailProg, "a_pos");
-      this.trail_aFade   = gl.getAttribLocation(this.trailProg, "a_fade");
-      this.trail_uMatrix = gl.getUniformLocation(this.trailProg, "u_matrix");
+      this.t_pos  = gl.getAttribLocation(this.tp, "a_pos");
+      this.t_fade = gl.getAttribLocation(this.tp, "a_fade");
+      this.t_mat  = gl.getUniformLocation(this.tp, "u_matrix");
 
-      this.dot_aPos    = gl.getAttribLocation(this.dotProg, "a_pos");
-      this.dot_uMatrix = gl.getUniformLocation(this.dotProg, "u_matrix");
+      this.d_pos  = gl.getAttribLocation(this.dp, "a_pos");
+      this.d_mat  = gl.getUniformLocation(this.dp, "u_matrix");
 
-      this.trailBuffer = gl.createBuffer();
-      this.dotBuffer   = gl.createBuffer();
+      // One reusable buffer — we upload fresh data for each draw call
+      this.buf = gl.createBuffer();
     },
 
     render(gl, matrix) {
+      if (!satTrailRaw.length && !satPositions3D.length) return;
+
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
 
-      // ── Horizon cull via module-scope isVisible() ──────────────────────────
+      // Camera direction — computed ONCE per frame, used for all visibility checks
+      const c = map.getCenter();
+      const cl = c.lat * Math.PI / 180, cn = c.lng * Math.PI / 180;
+      const cx = Math.cos(cl)*Math.cos(cn);
+      const cy = Math.cos(cl)*Math.sin(cn);
+      const cz = Math.sin(cl);
+      const B  = Float32Array.BYTES_PER_ELEMENT;
 
-      // ── Trails: LINE_STRIP segments, culled to visible hemisphere ──────────
-      if (satTrails3D.length > 0) {
-        // Build visible segments — break when a point goes behind the horizon
-        const visiblePoints = [];
-        const segmentCounts = [];
-        let current = [];
+      // Helper: is this lon/lat on the visible hemisphere?
+      const vis = (lon, lat) => {
+        const phi = lat*Math.PI/180, lam = lon*Math.PI/180;
+        return Math.cos(phi)*Math.cos(lam)*cx + Math.cos(phi)*Math.sin(lam)*cy + Math.sin(phi)*cz > 0.08;
+      };
 
-        satTrails3D.forEach((p, i) => {
-          const visible = isVisible(p.lon, p.lat, p.altM);
-          // Break segment when satellite changes
-          const isNewSat = i > 0 && p.satId !== satTrails3D[i-1].satId;
-          if (isNewSat) {
-            if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length / 4); }
-            current = [];
-          }
-          if (visible) {
-            const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-            current.push(mc.x, mc.y, mc.z, p.fade);
-          } else {
-            if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length / 4); }
-            current = [];
-          }
-        });
-        if (current.length > 1) { visiblePoints.push(...current); segmentCounts.push(current.length / 4); }
+      // ── TRAILS ─────────────────────────────────────────────────────────────
+      // For each satellite → for each antimeridian-segment → walk points,
+      // break into sub-segments at visibility boundaries,
+      // upload each sub-segment as a separate LINE_STRIP draw call.
+      // Zero offset math. Zero shared buffer slicing.
 
-        if (visiblePoints.length > 0) {
-          const STRIDE = 4;
-          const trailData = new Float32Array(visiblePoints);
-          const bytes = Float32Array.BYTES_PER_ELEMENT;
+      gl.useProgram(this.tp);
+      gl.uniformMatrix4fv(this.t_mat, false, matrix);
 
-          gl.useProgram(this.trailProg);
-          gl.bindBuffer(gl.ARRAY_BUFFER, this.trailBuffer);
-          gl.bufferData(gl.ARRAY_BUFFER, trailData, gl.DYNAMIC_DRAW);
-          gl.enableVertexAttribArray(this.trail_aPos);
-          gl.vertexAttribPointer(this.trail_aPos,  3, gl.FLOAT, false, STRIDE * bytes, 0);
-          gl.enableVertexAttribArray(this.trail_aFade);
-          gl.vertexAttribPointer(this.trail_aFade, 1, gl.FLOAT, false, STRIDE * bytes, 3 * bytes);
-          gl.uniformMatrix4fv(this.trail_uMatrix, false, matrix);
+      satTrailRaw.forEach(segs => {
+        segs.forEach(seg => {
+          const total = seg.length;
+          let run = []; // floats: x,y,z,fade for current visible run
 
-          let offset = 0;
-          segmentCounts.forEach(count => {
-            if (count > 1) gl.drawArrays(gl.LINE_STRIP, offset, count);
-            offset += count;
+          const flush = () => {
+            if (run.length < 8) { run = []; return; } // need ≥ 2 vertices
+            const fa = new Float32Array(run);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+            gl.bufferData(gl.ARRAY_BUFFER, fa, gl.DYNAMIC_DRAW);
+            gl.enableVertexAttribArray(this.t_pos);
+            gl.vertexAttribPointer(this.t_pos,  3, gl.FLOAT, false, 4*B, 0);
+            gl.enableVertexAttribArray(this.t_fade);
+            gl.vertexAttribPointer(this.t_fade, 1, gl.FLOAT, false, 4*B, 3*B);
+            gl.drawArrays(gl.LINE_STRIP, 0, run.length / 4);
+            run = [];
+          };
+
+          seg.forEach(([lon, lat, altKm], idx) => {
+            const altM = Math.min(altKm * 1000, 800000);
+            if (vis(lon, lat)) {
+              const mc = mapboxgl.MercatorCoordinate.fromLngLat({lng: lon, lat: lat}, altM);
+              run.push(mc.x, mc.y, mc.z, total > 1 ? idx / (total - 1) : 1.0);
+            } else {
+              flush(); // end current run, start new one after this invisible point
+            }
           });
-        }
-      }
+          flush(); // flush final run
+        });
+      });
 
-      // ── Draw dot for tracked satellite only ────────────────────────────────
+      // ── TRACKED SATELLITE DOT ───────────────────────────────────────────────
       if (trackedSatId && satPositions3D.length) {
         const idx = currentSatellites.findIndex(s => s.id === trackedSatId);
         if (idx >= 0 && idx < satPositions3D.length) {
           const p = satPositions3D[idx];
-          if (isVisible(p.lon, p.lat, p.altM)) {
-            const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
-            const dotData = new Float32Array([mc.x, mc.y, mc.z]);
-            gl.useProgram(this.dotProg);
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, dotData, gl.DYNAMIC_DRAW);
-            gl.enableVertexAttribArray(this.dot_aPos);
-            gl.vertexAttribPointer(this.dot_aPos, 3, gl.FLOAT, false, 0, 0);
-            gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
+          if (vis(p.lon, p.lat)) {
+            const mc = mapboxgl.MercatorCoordinate.fromLngLat({lng: p.lon, lat: p.lat}, p.altM);
+            const data = new Float32Array([mc.x, mc.y, mc.z]);
+            gl.useProgram(this.dp);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+            gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+            gl.enableVertexAttribArray(this.d_pos);
+            gl.vertexAttribPointer(this.d_pos, 3, gl.FLOAT, false, 0, 0);
+            gl.uniformMatrix4fv(this.d_mat, false, matrix);
             gl.drawArrays(gl.POINTS, 0, 1);
           }
         }
       }
 
-      // Restore GL state
       gl.depthMask(true);
     }
-  };
-
-  map.addLayer(layer);
+  });
 }
 
 // ─── SATELLITE LAYERS ────────────────────────────────────────────────────────
@@ -990,7 +978,7 @@ function initSatelliteLabels() {
       const el = labelEls[sat.id];
       if (!el || el.classList.contains("tracked")) return;
 
-      if (!isVisible(p.lon, p.lat, p.altM)) {
+      if (!isVisible(p.lon, p.lat)) {
         el.style.display = "none";
         return;
       }
@@ -1016,36 +1004,30 @@ function updateSatellitePositions() {
   if (!map.getSource("sat-dots")) return;
 
   const now = new Date();
-  const newPositions3D = [];
-  const newTrails3D = [];
+  const newPositions = [];
+  const newTrailRaw  = [];
 
   currentSatellites.forEach(sat => {
     const pos = propagateSatellite(sat.l1, sat.l2, now);
-    if (!pos) return;
+    if (!pos) {
+      newTrailRaw.push([]);
+      return;
+    }
 
-    // 3D position for WebGL dot rendering
-    // Cap visual altitude at 2000km — MEO/GEO break Mercator 3D coords beyond this
-    const MAX_RENDER_ALT_M = 800 * 1000;
-    const renderAltM = Math.min(pos.alt * 1000, MAX_RENDER_ALT_M);
-    newPositions3D.push({ lon: pos.lon, lat: pos.lat, altM: renderAltM, trueAltM: pos.alt * 1000 });
-
-    // 3D trail — each point gets a fade value 0 (oldest) → 1 (newest)
-    const segments = getTrailPoints(sat.l1, sat.l2, 15);
-    const trailPoints = [];
-    segments.forEach(seg => seg.forEach(pt => trailPoints.push(pt)));
-    const total = trailPoints.length;
-    trailPoints.forEach(([lon, lat, altKm], idx) => {
-      newTrails3D.push({
-        lon, lat,
-        altM: Math.min(altKm * 1000, 800 * 1000),
-        fade: total > 1 ? idx / (total - 1) : 1.0,
-        satId: sat.id
-      });
+    // Current position — altitude capped at 800km
+    newPositions.push({
+      lon: pos.lon,
+      lat: pos.lat,
+      altM: Math.min(pos.alt * 1000, 800000)
     });
+
+    // Raw trail segments from getTrailPoints (antimeridian-split)
+    // Visibility culling and Mercator conversion happen in render
+    newTrailRaw.push(getTrailPoints(sat.l1, sat.l2, 15));
   });
 
-  satPositions3D = newPositions3D;
-  satTrails3D = newTrails3D;
+  satPositions3D = newPositions;
+  satTrailRaw    = newTrailRaw;
   map.triggerRepaint();
 
   if (isTracking && trackedSatId) {
