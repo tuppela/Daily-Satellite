@@ -731,11 +731,11 @@ let lastSatUpdate = 0;
 function rotationLoop(timestamp) {
   if (!timestamp) { requestAnimationFrame(rotationLoop); return; }
 
-  // Resume rotation after idle period
-  if (!autoRotate && lastInteractionTime > 0 &&
+  // Resume rotation after idle — but never while tracking a satellite
+  if (!autoRotate && !isTracking && lastInteractionTime > 0 &&
       (timestamp - lastInteractionTime) > RESUME_DELAY_MS) {
     autoRotate = true;
-    lastRotateTime = timestamp; // reset so we don't get a jump
+    lastRotateTime = timestamp;
   }
 
   if (autoRotate && !isTracking) {
@@ -755,9 +755,8 @@ function rotationLoop(timestamp) {
 
 map.on("mousedown", () => {
   autoRotate = false;
-  isTracking = false;
-  trackedSatId = null;
   lastInteractionTime = performance.now();
+  // tracking only released by closePanel()
 });
 map.on("wheel",     () => { lastInteractionTime = performance.now(); autoRotate = false; });
 map.on("touchstart",() => { lastInteractionTime = performance.now(); autoRotate = false; });
