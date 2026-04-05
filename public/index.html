@@ -125,7 +125,7 @@
       white-space: nowrap;
       pointer-events: auto;
       cursor: pointer;
-      transform: translate(0, -50%);
+      transform: translate(8px, -50%);
       border: 1px solid rgba(26,22,16,0.12);
       transition: opacity 0.2s;
     }
@@ -782,7 +782,7 @@ function isVisible(lon, lat, altM = 0) {
   const pz = Math.sin(phi);
   const dot = px * cx + py * cy + pz * cz;
   const R = 6371000;
-  const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) : -0.1;
+  const threshold = altM > 0 ? -Math.sqrt(1 - Math.pow(R / (R + altM), 2)) * 0.7 : 0.05;
   return dot > threshold;
 }
 
@@ -955,8 +955,7 @@ function initSatelliteLayers() {
 
 function initSatelliteLabels() {
   const labelContainer = document.getElementById("sat-labels");
-  if (!labelContainer) { console.error("sat-labels container not found"); return; }
-  console.log("initSatelliteLabels called, satellites:", currentSatellites.length);
+  if (!labelContainer) return;
 
   const labelEls = {};
 
@@ -983,10 +982,6 @@ function initSatelliteLabels() {
     if (!satPositions3D.length) {
       requestAnimationFrame(updateLabels);
       return;
-    }
-    if (!labelDebugLogged) {
-      console.log("updateLabels running, positions:", satPositions3D.length, "labelEls:", Object.keys(labelEls).length);
-      labelDebugLogged = true;
     }
 
     satPositions3D.forEach((p, i) => {
