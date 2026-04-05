@@ -866,11 +866,7 @@ function addSatellite3DLayer() {
     render(gl, matrix) {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-      // Depth test against Mapbox's globe geometry — culls points behind Earth
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthMask(false);        // don't write to depth buffer (we're additive on top)
-      gl.depthFunc(gl.LEQUAL);    // pass if at or in front of existing depth
+      gl.depthMask(false);
 
       // ── Horizon cull via module-scope isVisible() ──────────────────────────
 
@@ -921,7 +917,26 @@ function addSatellite3DLayer() {
         }
       }
 
-      // Dots replaced by HTML labels — restore GL state and done
+      // ── Draw dot for tracked satellite only ────────────────────────────────
+      if (trackedSatId && satPositions3D.length) {
+        const idx = currentSatellites.findIndex(s => s.id === trackedSatId);
+        if (idx >= 0 && idx < satPositions3D.length) {
+          const p = satPositions3D[idx];
+          if (isVisible(p.lon, p.lat, p.altM)) {
+            const mc = mapboxgl.MercatorCoordinate.fromLngLat({ lng: p.lon, lat: p.lat }, p.altM);
+            const dotData = new Float32Array([mc.x, mc.y, mc.z]);
+            gl.useProgram(this.dotProg);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, dotData, gl.DYNAMIC_DRAW);
+            gl.enableVertexAttribArray(this.dot_aPos);
+            gl.vertexAttribPointer(this.dot_aPos, 3, gl.FLOAT, false, 0, 0);
+            gl.uniformMatrix4fv(this.dot_uMatrix, false, matrix);
+            gl.drawArrays(gl.POINTS, 0, 1);
+          }
+        }
+      }
+
+      // Restore GL state
       gl.depthMask(true);
     }
   };
@@ -985,11 +1000,15 @@ function initSatelliteLabels() {
         return;
       }
 
-      // map.project gives surface position — good enough for label placement
+      // map.project gives surface position. Approximate altitude offset:
+      // at zoom ~2 (globe view), 1px ≈ ~200km, so shift label up by altM/200000 px
       const screen = map.project([p.lon, p.lat]);
+      const zoom = map.getZoom();
+      const metersPerPixel = 156543.03392 * Math.cos(p.lat * Math.PI / 180) / Math.pow(2, zoom);
+      const altOffsetPx = p.altM / metersPerPixel;
       el.style.display = "block";
       el.style.left = screen.x + "px";
-      el.style.top  = screen.y + "px";
+      el.style.top  = (screen.y - altOffsetPx) + "px";
     });
 
     requestAnimationFrame(updateLabels);
@@ -1011,7 +1030,7 @@ function updateSatellitePositions() {
 
     // 3D position for WebGL dot rendering
     // Cap visual altitude at 2000km — MEO/GEO break Mercator 3D coords beyond this
-    const MAX_RENDER_ALT_M = 2000 * 1000;
+    const MAX_RENDER_ALT_M = 800 * 1000;
     const renderAltM = Math.min(pos.alt * 1000, MAX_RENDER_ALT_M);
     newPositions3D.push({ lon: pos.lon, lat: pos.lat, altM: renderAltM, trueAltM: pos.alt * 1000 });
 
@@ -1023,7 +1042,7 @@ function updateSatellitePositions() {
     trailPoints.forEach(([lon, lat, altKm], idx) => {
       newTrails3D.push({
         lon, lat,
-        altM: Math.min(altKm * 1000, 2000 * 1000),
+        altM: Math.min(altKm * 1000, 800 * 1000),
         fade: total > 1 ? idx / (total - 1) : 1.0,
         satId: sat.id
       });
