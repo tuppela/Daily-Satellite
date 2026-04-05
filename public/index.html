@@ -896,7 +896,7 @@ function addSatellite3DLayer() {
           };
 
           seg.forEach(([lon, lat, altKm], idx) => {
-            const altM = Math.min(altKm * 1000, 800000);
+            const altM = 0; // surface level — matches label position from map.project()
             if (vis(lon, lat)) {
               const mc = mapboxgl.MercatorCoordinate.fromLngLat({lng: lon, lat: lat}, altM);
               run.push(mc.x, mc.y, mc.z, total > 1 ? idx / (total - 1) : 1.0);
@@ -914,7 +914,7 @@ function addSatellite3DLayer() {
         if (idx >= 0 && idx < satPositions3D.length) {
           const p = satPositions3D[idx];
           if (vis(p.lon, p.lat)) {
-            const mc = mapboxgl.MercatorCoordinate.fromLngLat({lng: p.lon, lat: p.lat}, p.altM);
+            const mc = mapboxgl.MercatorCoordinate.fromLngLat({lng: p.lon, lat: p.lat}, 0);
             const data = new Float32Array([mc.x, mc.y, mc.z]);
             gl.useProgram(this.dp);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
@@ -986,12 +986,9 @@ function initSatelliteLabels() {
       // map.project gives surface position. Approximate altitude offset:
       // at zoom ~2 (globe view), 1px ≈ ~200km, so shift label up by altM/200000 px
       const screen = map.project([p.lon, p.lat]);
-      const zoom = map.getZoom();
-      const metersPerPixel = 156543.03392 * Math.cos(p.lat * Math.PI / 180) / Math.pow(2, zoom);
-      const altOffsetPx = p.altM / metersPerPixel;
       el.style.display = "block";
       el.style.left = screen.x + "px";
-      el.style.top  = (screen.y - altOffsetPx) + "px";
+      el.style.top  = screen.y + "px";
     });
 
     requestAnimationFrame(updateLabels);
