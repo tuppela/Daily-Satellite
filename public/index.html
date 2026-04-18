@@ -56,54 +56,46 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
     }
 
-    /* Masthead */
+    /* Masthead — slim, barely-there */
     #masthead {
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 50;
-      padding: 12px 32px;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      padding: 10px 24px;
+      display: flex;
       align-items: center;
-      border-bottom: 1px solid var(--ink-faint);
-      background: linear-gradient(to bottom, var(--bg) 70%, transparent);
+      justify-content: space-between;
       pointer-events: none;
       opacity: 0;
       transition: opacity 1.2s ease;
     }
     #masthead.visible { opacity: 1; }
 
-    #masthead-left {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-    }
-
+    #masthead-left { display: flex; align-items: center; gap: 10px; }
     #masthead-vol {
       font-family: var(--sc);
-      font-size: 8px;
+      font-size: 7px;
       letter-spacing: 0.3em;
       text-transform: uppercase;
-      opacity: 0.35;
+      opacity: 0.22;
     }
-
     #masthead-title {
       font-family: 'Instrument Serif', Georgia, serif;
-      font-size: 22px;
+      font-size: 17px;
       letter-spacing: 0.01em;
-      opacity: 0.9;
-      text-align: center;
-      justify-self: center;
+      opacity: 0.55;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
     }
-
     #masthead-right {
       font-family: var(--sc);
-      font-size: 8px;
-      letter-spacing: 0.2em;
+      font-size: 7px;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      opacity: 0.35;
+      opacity: 0.22;
       text-align: right;
-      line-height: 1.7;
+      line-height: 1.6;
     }
 
     /* Satellite labels */
@@ -240,154 +232,197 @@
     }
     #daily-card:hover #daily-card-cta { opacity: 0.8; }
 
-    /* ─── INFO PANEL ── */
+    /* ─── INFO PANEL ─────────────────────────────────────────────────────── */
     :root {
       --panel-bg: rgb(238, 233, 221);
-      --panel-border: rgba(26, 22, 16, 0.14);
-      --panel-ink: rgba(26, 22, 16, 0.88);
+      --panel-border: rgba(26, 22, 16, 0.1);
+      --panel-ink: rgba(26, 22, 16, 0.9);
       --panel-faint: rgba(26, 22, 16, 0.38);
-      --panel-ghost: rgba(26, 22, 16, 0.09);
+      --panel-ghost: rgba(26, 22, 16, 0.07);
+      --panel-w: 380px;
     }
 
+    /* Desktop: right-side drawer */
     #info-panel {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.96);
-      z-index: 80;
-      width: min(820px, 92vw);
-      height: min(700px, 88vh);
+      top: 0; right: 0; bottom: 0;
+      width: var(--panel-w);
       background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
+      border-left: 1px solid var(--panel-border);
       display: flex;
       flex-direction: column;
+      z-index: 80;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.5s ease, transform 0.5s ease;
+      transform: translateX(100%);
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+      overflow: hidden;
     }
     #info-panel.visible {
       opacity: 1;
       pointer-events: all;
-      transform: translate(-50%, -50%) scale(1);
+      transform: translateX(0);
     }
 
+    /* Drag handle — mobile only */
+    #panel-handle {
+      display: none;
+      width: 36px; height: 4px;
+      background: rgba(26,22,16,0.15);
+      border-radius: 2px;
+      margin: 14px auto 0;
+      flex-shrink: 0;
+    }
+
+    /* Header */
     #panel-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 18px 44px 16px;
+      padding: 24px 28px 0;
       flex-shrink: 0;
     }
     #panel-sat-type {
       font-family: var(--sc);
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      letter-spacing: 0.2em;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--panel-faint);
     }
-    #panel-header-controls { display: flex; gap: 28px; }
+    #panel-header-controls { display: flex; gap: 20px; align-items: center; }
     .panel-ctrl {
       font-family: var(--sc);
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      letter-spacing: 0.2em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--panel-faint);
       background: none;
       border: none;
       cursor: pointer;
       padding: 0;
-      transition: color 0.2s;
+      transition: color 0.15s;
+      white-space: nowrap;
     }
     .panel-ctrl:hover { color: var(--panel-ink); }
-    .panel-ctrl:disabled { opacity: 0.3; cursor: default; }
+    .panel-ctrl:disabled { opacity: 0.25; cursor: default; }
+    #ctrl-close {
+      font-family: var(--sc);
+      font-size: 18px;
+      letter-spacing: 0;
+      line-height: 1;
+      opacity: 0.35;
+      font-weight: 300;
+    }
+    #ctrl-close:hover { opacity: 0.9; }
 
+    /* Name block */
     #panel-name-row {
-      padding: 0 44px 20px;
+      padding: 16px 28px 0;
       flex-shrink: 0;
     }
     #panel-sat-name {
       font-family: 'Libre Baskerville', Georgia, serif;
-      font-size: 52px;
+      font-size: 34px;
       font-weight: 700;
       letter-spacing: -0.01em;
       color: var(--panel-ink);
-      line-height: 1.0;
-    }
-
-    #panel-columns {
-      display: grid;
-      grid-template-columns: 58% 42%;
-      flex: 1;
-      overflow: hidden;
-      padding: 0 44px;
-      gap: 0 32px;
-    }
-
-    #panel-left {
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      line-height: 1.05;
     }
     #panel-sat-agency {
       font-family: var(--sc);
-      font-size: 10px;
-      font-weight: 400;
+      font-size: 9px;
       letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--panel-faint);
-      flex-shrink: 0;
-      padding-bottom: 28px;
+      margin-top: 7px;
     }
 
+    /* Data strip — horizontal key/value pairs */
+    #panel-data-strip {
+      padding: 20px 28px 0;
+      flex-shrink: 0;
+    }
+    #panel-data-block {
+      display: flex;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--panel-ghost);
+      border-bottom: 1px solid var(--panel-ghost);
+      padding: 8px 0;
+      gap: 0;
+    }
+    .panel-data-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 18px 6px 0;
+      min-width: 72px;
+    }
+    .panel-data-key {
+      font-family: var(--sc);
+      font-size: 7px;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--panel-faint);
+    }
+    .panel-data-val {
+      font-family: var(--sc);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--panel-ink);
+    }
+
+    /* Scrollable body */
     #panel-body {
       flex: 1;
       overflow-y: auto;
       position: relative;
       scrollbar-width: none;
+      padding: 0 28px;
+      margin-top: 20px;
+      min-height: 0;
     }
     #panel-body::-webkit-scrollbar { display: none; }
 
     #panel-fade-top {
       position: sticky;
       top: 0;
-      height: 40px;
-      background: linear-gradient(to bottom, rgb(238,233,221) 30%, transparent 100%);
+      height: 32px;
+      background: linear-gradient(to bottom, rgb(238,233,221) 30%, transparent);
       z-index: 2;
       pointer-events: none;
-      margin-bottom: -40px;
+      margin-bottom: -32px;
       opacity: 0;
       transition: opacity 0.3s;
     }
     #panel-fade-bottom {
       position: sticky;
       bottom: 0;
-      height: 80px;
-      background: linear-gradient(to top, rgb(238,233,221) 50%, transparent 100%);
+      height: 60px;
+      background: linear-gradient(to top, rgb(238,233,221) 50%, transparent);
       z-index: 2;
       pointer-events: none;
-      margin-top: -80px;
+      margin-top: -60px;
     }
-
     #panel-text-content {
       font-family: 'Libre Baskerville', Georgia, serif;
-      font-size: 15px;
-      line-height: 1.82;
+      font-size: 14px;
+      line-height: 1.85;
       color: var(--panel-ink);
-      padding-bottom: 80px;
+      padding-bottom: 60px;
     }
-    #panel-text-content p { margin-bottom: 18px; }
+    #panel-text-content p { margin-bottom: 16px; }
     #panel-text-content p:last-child { margin-bottom: 0; }
 
     #panel-loading {
       font-family: var(--sc);
-      font-size: 10px;
-      font-weight: 400;
+      font-size: 9px;
       letter-spacing: 0.3em;
       text-transform: uppercase;
       color: var(--panel-faint);
-      padding-top: 4px;
     }
     #panel-loading::after {
       content: '';
@@ -400,48 +435,33 @@
       80%, 100% { content: '...'; }
     }
 
-    #panel-right { padding-top: 0; }
-    .panel-data-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 9px 0;
-      border-bottom: 1px solid var(--panel-ghost);
-    }
-    .panel-data-key {
-      font-family: var(--sc);
-      font-size: 10px;
-      font-weight: 400;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--panel-faint);
-    }
-    .panel-data-val {
-      font-family: var(--sc);
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: var(--panel-ink);
-      text-align: right;
-    }
-
-    #info-panel.collapsed {
-      top: auto; bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(420px, 90vw);
-      height: auto;
-    }
+    /* Collapsed — desktop: slim, just header visible */
     #info-panel.collapsed #panel-name-row,
-    #info-panel.collapsed #panel-columns { display: none; }
+    #info-panel.collapsed #panel-data-strip,
+    #info-panel.collapsed #panel-body { display: none; }
+    #info-panel.collapsed #panel-header { padding-bottom: 24px; }
 
-    #collapsed-label {
-      font-family: var(--sc);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--panel-faint);
+    /* Mobile: bottom sheet */
+    @media (max-width: 999px) {
+      #info-panel {
+        top: auto;
+        left: 0; right: 0; bottom: 0;
+        width: 100%;
+        height: 74vh;
+        border-left: none;
+        border-top: 1px solid var(--panel-border);
+        border-radius: 18px 18px 0 0;
+        transform: translateY(100%);
+      }
+      #info-panel.visible { transform: translateY(0); }
+      #panel-handle { display: block; }
+      #panel-header { padding-top: 18px; padding-left: 24px; padding-right: 24px; }
+      #panel-name-row { padding-left: 24px; padding-right: 24px; }
+      #panel-name-row #panel-sat-name { font-size: 28px; }
+      #panel-data-strip { padding-left: 24px; padding-right: 24px; }
+      #panel-body { padding-left: 24px; padding-right: 24px; }
+      /* Collapsed on mobile: peek from bottom */
+      #info-panel.collapsed { transform: translateY(calc(100% - 74px)); }
     }
   </style>
 </head>
@@ -478,31 +498,28 @@
 
 <!-- INFO PANEL -->
 <div id="info-panel">
+  <div id="panel-handle"></div>
   <div id="panel-header">
     <div id="panel-sat-type">◆ Loading</div>
     <div id="panel-header-controls">
       <button class="panel-ctrl" id="ctrl-listen" onclick="toggleNarrator()">▶ Listen</button>
       <button class="panel-ctrl" id="ctrl-collapse" onclick="togglePanel()">Collapse</button>
-      <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">Close</button>
+      <button class="panel-ctrl" id="ctrl-close" onclick="closePanel()">×</button>
     </div>
   </div>
   <div id="panel-name-row">
     <div id="panel-sat-name">—</div>
+    <div id="panel-sat-agency"></div>
   </div>
-  <div id="panel-columns">
-    <div id="panel-left">
-      <div id="panel-sat-agency"></div>
-      <div id="panel-body">
-        <div id="panel-fade-top"></div>
-        <div id="panel-text-content">
-          <p id="panel-loading">The archivist is searching the files</p>
-        </div>
-        <div id="panel-fade-bottom"></div>
-      </div>
+  <div id="panel-data-strip">
+    <div id="panel-data-block"></div>
+  </div>
+  <div id="panel-body">
+    <div id="panel-fade-top"></div>
+    <div id="panel-text-content">
+      <p id="panel-loading">The archivist is searching the files</p>
     </div>
-    <div id="panel-right">
-      <div id="panel-data-block"></div>
-    </div>
+    <div id="panel-fade-bottom"></div>
   </div>
 </div>
 
