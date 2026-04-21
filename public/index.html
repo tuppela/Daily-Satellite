@@ -1043,7 +1043,11 @@ function updateSatellitePositions() {
     const sat = currentSatellites.find(s => s.id === trackedSatId);
     if (sat) {
       const pos = propagateSatellite(sat.l1, sat.l2, now);
-      if (pos) map.setCenter([pos.lon, pos.lat]);
+      if (pos) map.easeTo({
+        center: [pos.lon, pos.lat],
+        duration: 150,
+        easing: t => t,
+      });
     }
   }
 }
@@ -1055,7 +1059,7 @@ function flyToSatellite(sat) {
   if (!pos) return;
 
   const isMobile = window.innerWidth < 1000;
-  const zoom = window._devFlyZoom || (isMobile ? 3.0 : 3.5);
+  const zoom = window._devFlyZoom || 7.0;
   map.flyTo({
     center: [pos.lon, pos.lat],
     zoom,
@@ -1252,7 +1256,7 @@ map.on("load", async () => {
 
   setTimeout(() => {
     const isMobile = window.innerWidth < 1000;
-    const defaultZoom = isMobile ? 3.0 : 3.5;
+    const defaultZoom = 7.0;
     const slider = document.getElementById('zoom-slider');
     const val = document.getElementById('zoom-val');
     const dev = document.getElementById('zoom-device');
