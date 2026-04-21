@@ -265,15 +265,7 @@
       transform: translateX(0);
     }
 
-    /* Drag handle — mobile only */
-    #panel-handle {
-      display: none;
-      width: 36px; height: 4px;
-      background: rgba(26,22,16,0.15);
-      border-radius: 2px;
-      margin: 14px auto 6px;
-      flex-shrink: 0;
-    }
+    #panel-handle { display: none; }
 
     /* Controls bar — always visible, sticks to top */
     #panel-header {
@@ -436,22 +428,21 @@
         height: 76vh;
         border-left: none;
         border-top: 1px solid var(--panel-border);
-        border-radius: 20px 20px 0 0;
         transform: translateY(100%);
       }
       #info-panel.visible { transform: translateY(0); }
-      #panel-handle { display: block; }
+      #panel-handle { display: none; }
       #panel-header { padding: 12px 20px 14px; }
       #panel-body { padding: 20px 20px 0; }
       #panel-name-row { padding: 16px 20px 0; }
       #panel-sat-name { font-size: 26px; }
       #panel-data-strip { padding: 12px 20px 28px; }
-      /* Collapsed: peek — just handle + header visible */
+      /* Collapsed: peek — just header visible */
       #info-panel.collapsed { transform: translateY(calc(100% - var(--panel-collapsed-h))); }
       #info-panel.collapsed #panel-body,
       #info-panel.collapsed #panel-name-row,
       #info-panel.collapsed #panel-data-strip { display: none; }
-      #info-panel.collapsed #panel-handle { display: block; }
+      #info-panel.collapsed #panel-handle { display: none; }
     }
   </style>
 </head>
