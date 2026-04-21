@@ -1039,23 +1039,22 @@ function flyToSatellite(sat) {
   const pos = propagateSatellite(sat.l1, sat.l2, new Date());
   if (!pos) return;
 
-  // Zoom level based on altitude — LEO close, GEO far
-  const zoom = pos.alt < 1000 ? 5 : pos.alt < 5000 ? 3.5 : 2;
-
+  // Zoom 3.5 gives a dramatic close-up where the satellite is clearly
+  // the subject — globe curve visible, satellite centered, feels like arrival
   map.flyTo({
     center: [pos.lon, pos.lat],
-    zoom,
+    zoom: 3.5,
     pitch: 0,
     bearing: map.getBearing(),
-    duration: 2500,
+    duration: 2800,
     easing: t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t,
   });
 
-  // Start tracking after fly
+  // Start tracking after fly completes
   setTimeout(() => {
     isTracking = true;
     trackedSatId = sat.id;
-  }, 2600);
+  }, 2900);
 }
 
 // ─── DAILY CARD ───────────────────────────────────────────────────────────────
