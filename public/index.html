@@ -477,20 +477,7 @@
 <div id="sat-count"></div>
 <div id="season-indicator"></div>
 
-<!-- DEV: zoom slider — remove before launch -->
-<div id="zoom-dev" style="position:fixed;bottom:60px;right:24px;z-index:200;background:rgba(238,233,221,0.95);border:1px solid rgba(26,22,16,0.15);padding:12px 16px;font-family:'Source Code Pro',monospace;font-size:10px;letter-spacing:0.1em;">
-  <div style="margin-bottom:6px;opacity:0.5;text-transform:uppercase;">Fly-to zoom (<span id="zoom-device"></span>)</div>
-  <input type="range" id="zoom-slider" min="1" max="10" step="0.1" value="3.5"
-    style="width:160px;accent-color:#1a1610;"
-    oninput="document.getElementById('zoom-val').textContent=parseFloat(this.value).toFixed(1); window._devFlyZoom=parseFloat(this.value);">
-  <span id="zoom-val" style="margin-left:8px;font-weight:700;">3.5</span>
-  <div style="margin-top:8px;">
-    <button onclick="if(window.currentPanelSat) flyToSatellite(window.currentPanelSat);"
-      style="font-family:'Source Code Pro',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;background:none;border:1px solid rgba(26,22,16,0.3);padding:4px 10px;cursor:pointer;">
-      Test fly
-    </button>
-  </div>
-</div>
+
 
 <!-- INFO PANEL -->
 <div id="info-panel">
@@ -1073,7 +1060,7 @@ function flyToSatellite(sat) {
   if (!pos) return;
 
   const isMobile = window.innerWidth < 1000;
-  const zoom = window._devFlyZoom || (isMobile ? 8.0 : 7.0);
+  const zoom = isMobile ? 8.0 : 7.0;
   map.flyTo({
     center: [pos.lon, pos.lat],
     zoom,
@@ -1268,15 +1255,6 @@ map.on("load", async () => {
   // Animation loop handles all updates
   requestAnimationFrame(rotationLoop);
 
-  setTimeout(() => {
-    const isMobile = window.innerWidth < 1000;
-    const defaultZoom = isMobile ? 8.0 : 7.0;
-    const slider = document.getElementById('zoom-slider');
-    const val = document.getElementById('zoom-val');
-    const dev = document.getElementById('zoom-device');
-    if (slider) { slider.value = defaultZoom; val.textContent = defaultZoom.toFixed(1); }
-    if (dev) dev.textContent = isMobile ? 'mobile' : 'desktop';
-  }, 100);
 
   setTimeout(() => initDailyCard(currentSatellites), 3500);
 });
