@@ -479,7 +479,7 @@
 
 <!-- DEV: zoom slider — remove before launch -->
 <div id="zoom-dev" style="position:fixed;bottom:60px;right:24px;z-index:200;background:rgba(238,233,221,0.95);border:1px solid rgba(26,22,16,0.15);padding:12px 16px;font-family:'Source Code Pro',monospace;font-size:10px;letter-spacing:0.1em;">
-  <div style="margin-bottom:6px;opacity:0.5;text-transform:uppercase;">Fly-to zoom</div>
+  <div style="margin-bottom:6px;opacity:0.5;text-transform:uppercase;">Fly-to zoom (<span id="zoom-device"></span>)</div>
   <input type="range" id="zoom-slider" min="1" max="10" step="0.1" value="3.5"
     style="width:160px;accent-color:#1a1610;"
     oninput="document.getElementById('zoom-val').textContent=parseFloat(this.value).toFixed(1); window._devFlyZoom=parseFloat(this.value);">
@@ -1054,7 +1054,8 @@ function flyToSatellite(sat) {
   const pos = propagateSatellite(sat.l1, sat.l2, new Date());
   if (!pos) return;
 
-  const zoom = window._devFlyZoom || 3.5;
+  const isMobile = window.innerWidth < 1000;
+  const zoom = window._devFlyZoom || (isMobile ? 3.0 : 3.5);
   map.flyTo({
     center: [pos.lon, pos.lat],
     zoom,
@@ -1248,6 +1249,16 @@ map.on("load", async () => {
 
   // Animation loop handles all updates
   requestAnimationFrame(rotationLoop);
+
+  setTimeout(() => {
+    const isMobile = window.innerWidth < 1000;
+    const defaultZoom = isMobile ? 3.0 : 3.5;
+    const slider = document.getElementById('zoom-slider');
+    const val = document.getElementById('zoom-val');
+    const dev = document.getElementById('zoom-device');
+    if (slider) { slider.value = defaultZoom; val.textContent = defaultZoom.toFixed(1); }
+    if (dev) dev.textContent = isMobile ? 'mobile' : 'desktop';
+  }, 100);
 
   setTimeout(() => initDailyCard(currentSatellites), 3500);
 });
