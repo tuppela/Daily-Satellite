@@ -683,12 +683,13 @@ const map = new mapboxgl.Map({
   maxZoom: 18,
   attributionControl: false,
   logoPosition: "bottom-left",
-  scrollZoom: false,  // we handle scroll manually for custom curve
+  scrollZoom: true,   // native pinch zoom — smooth like Google Maps
+  touchZoomRotate: true,
 });
 
-// Custom scroll zoom: fast from space → globe, progressively resistant near surface
+// Custom scroll zoom for desktop mouse wheel only — touch pinch uses native Mapbox
 window.addEventListener("wheel", (e) => {
-  if (!map) return;
+  if (!map || window._isTouching) return;
   e.preventDefault();
   const currentZoom = map.getZoom();
   const delta = -e.deltaY;
@@ -697,7 +698,6 @@ window.addEventListener("wheel", (e) => {
   const zoomDelta = (delta / 200) * resistance * (currentZoom > 4 ? 2.5 : 1.5);
   const newZoom = Math.max(0.5, Math.min(18, currentZoom + zoomDelta));
 
-  // Use setZoom so it doesn't cancel the tracking center easeTo
   map.setZoom(newZoom);
 }, { passive: false });
 
@@ -765,7 +765,9 @@ map.on("mousedown", () => {
   // tracking only released by closePanel()
 });
 map.on("wheel",     () => { lastInteractionTime = performance.now(); autoRotate = false; });
-map.on("touchstart",() => { lastInteractionTime = performance.now(); autoRotate = false; });
+map.on("touchstart", () => { lastInteractionTime = performance.now(); autoRotate = false; window._isTouching = true; });
+map.on("touchend",   () => { window._isTouching = false; });
+map.on("touchcancel",() => { window._isTouching = false; });
 
 // Smoothed positions for rendering — interpolated each frame toward real positions
 let satSmoothPositions = []; // [{lon, lat}] mirrors satPositions3D indices
@@ -1055,7 +1057,7 @@ function updateSatellitePositions() {
   satTrailRaw    = newTrailRaw;
   map.triggerRepaint();
 
-  if (isTracking && trackedSatId) {
+  if (isTracking && trackedSatId && !window._isTouching) {
     const idx = currentSatellites.findIndex(s => s.id === trackedSatId);
     if (idx >= 0 && satSmoothPositions.length === satPositions3D.length) {
       const p = satSmoothPositions[idx];
