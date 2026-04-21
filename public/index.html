@@ -1121,7 +1121,10 @@ async function openPanel(sat) {
     });
     const data = await res.json();
     if (data.text) {
-      const paragraphs = data.text.split(/\n+/).filter(p => p.trim().length > 0);
+      const paragraphs = data.text
+        .split(/\n+/)
+        .filter(p => p.trim().length > 0)
+        .filter(p => !p.trim().startsWith('#')); // strip markdown headings
       textEl.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join("");
       listenBtn.disabled = false;
       listenBtn.style.opacity = "1";
