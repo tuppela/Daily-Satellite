@@ -763,6 +763,7 @@ function rotationLoop(timestamp) {
     lastSatUpdate = timestamp;
   }
 
+  updateSmoothedPositions();
   requestAnimationFrame(rotationLoop);
 }
 
@@ -774,7 +775,27 @@ map.on("mousedown", () => {
 map.on("wheel",     () => { lastInteractionTime = performance.now(); autoRotate = false; });
 map.on("touchstart",() => { lastInteractionTime = performance.now(); autoRotate = false; });
 
-// ─── SATELLITE DATA ───────────────────────────────────────────────────────────
+// Smoothed positions for rendering — interpolated each frame toward real positions
+let satSmoothPositions = []; // [{lon, lat}] mirrors satPositions3D indices
+
+function updateSmoothedPositions() {
+  if (!satPositions3D.length) return;
+  if (satSmoothPositions.length !== satPositions3D.length) {
+    // Init on first run or if satellite count changed
+    satSmoothPositions = satPositions3D.map(p => ({ lon: p.lon, lat: p.lat }));
+    return;
+  }
+  const alpha = 0.12; // lerp factor — higher = snappier, lower = smoother
+  satPositions3D.forEach((p, i) => {
+    const s = satSmoothPositions[i];
+    // Lerp — but handle antimeridian wrap (lon can jump ±360)
+    let dlon = p.lon - s.lon;
+    if (dlon > 180) dlon -= 360;
+    if (dlon < -180) dlon += 360;
+    s.lon += dlon * alpha;
+    s.lat += (p.lat - s.lat) * alpha;
+  });
+}
 let satPositions3D = []; // [{lon, lat, altM}] — one per satellite, same index as currentSatellites
 let satTrailRaw = [];    // [[seg, seg, ...], ...] — per satellite, per antimeridian-segment
                          // each seg = [[lon, lat, altKm], ...] raw from getTrailPoints
@@ -924,7 +945,9 @@ function addSatellite3DLayer() {
       if (trackedSatId && satPositions3D.length) {
         const idx = currentSatellites.findIndex(s => s.id === trackedSatId);
         if (idx >= 0 && idx < satPositions3D.length) {
-          const p = satPositions3D[idx];
+          // Use smoothed position for buttery movement
+          const p = (satSmoothPositions.length === satPositions3D.length)
+            ? satSmoothPositions[idx] : satPositions3D[idx];
           if (vis(p.lon, p.lat)) {
             const mc = mapboxgl.MercatorCoordinate.fromLngLat({lng: p.lon, lat: p.lat}, 0);
             const data = new Float32Array([mc.x, mc.y, mc.z]);
@@ -984,7 +1007,10 @@ function initSatelliteLabels() {
       return;
     }
 
-    satPositions3D.forEach((p, i) => {
+    const positions = satSmoothPositions.length === satPositions3D.length
+      ? satSmoothPositions : satPositions3D;
+
+    positions.forEach((p, i) => {
       const sat = currentSatellites[i];
       if (!sat) return;
       const el = labelEls[sat.id];
@@ -995,8 +1021,6 @@ function initSatelliteLabels() {
         return;
       }
 
-      // map.project gives surface position. Approximate altitude offset:
-      // at zoom ~2 (globe view), 1px ≈ ~200km, so shift label up by altM/200000 px
       const screen = map.project([p.lon, p.lat]);
       el.style.display = "block";
       el.style.left = screen.x + "px";
@@ -1040,14 +1064,10 @@ function updateSatellitePositions() {
   map.triggerRepaint();
 
   if (isTracking && trackedSatId) {
-    const sat = currentSatellites.find(s => s.id === trackedSatId);
-    if (sat) {
-      const pos = propagateSatellite(sat.l1, sat.l2, now);
-      if (pos) map.easeTo({
-        center: [pos.lon, pos.lat],
-        duration: 150,
-        easing: t => t,
-      });
+    const idx = currentSatellites.findIndex(s => s.id === trackedSatId);
+    if (idx >= 0 && satSmoothPositions.length === satPositions3D.length) {
+      const p = satSmoothPositions[idx];
+      map.easeTo({ center: [p.lon, p.lat], duration: 150, easing: t => t });
     }
   }
 }
