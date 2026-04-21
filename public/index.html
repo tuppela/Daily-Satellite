@@ -693,20 +693,12 @@ window.addEventListener("wheel", (e) => {
   const currentZoom = map.getZoom();
   const delta = -e.deltaY;
 
-  // Resistance curve: full speed above zoom 4, slows down below
-  // At zoom 10 you need ~4x more scroll to move the same zoom delta
-  const resistance = currentZoom > 4
-    ? 1.0
-    : currentZoom > 2
-      ? 0.5
-      : 0.25;
-
+  const resistance = currentZoom > 4 ? 1.0 : currentZoom > 2 ? 0.5 : 0.25;
   const zoomDelta = (delta / 200) * resistance * (currentZoom > 4 ? 2.5 : 1.5);
-  map.easeTo({
-    zoom: Math.max(0.5, Math.min(18, currentZoom + zoomDelta)),
-    duration: 80,
-    easing: t => t,
-  });
+  const newZoom = Math.max(0.5, Math.min(18, currentZoom + zoomDelta));
+
+  // Use setZoom so it doesn't cancel the tracking center easeTo
+  map.setZoom(newZoom);
 }, { passive: false });
 
 // Colour grading to match Cesium/Bing warmth
@@ -1079,7 +1071,7 @@ function flyToSatellite(sat) {
   if (!pos) return;
 
   const isMobile = window.innerWidth < 1000;
-  const zoom = window._devFlyZoom || 7.0;
+  const zoom = window._devFlyZoom || (isMobile ? 8.0 : 7.0);
   map.flyTo({
     center: [pos.lon, pos.lat],
     zoom,
@@ -1276,7 +1268,7 @@ map.on("load", async () => {
 
   setTimeout(() => {
     const isMobile = window.innerWidth < 1000;
-    const defaultZoom = 7.0;
+    const defaultZoom = isMobile ? 8.0 : 7.0;
     const slider = document.getElementById('zoom-slider');
     const val = document.getElementById('zoom-val');
     const dev = document.getElementById('zoom-device');
