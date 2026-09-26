@@ -1,0 +1,182 @@
+[
+  {
+    "id": "iss",
+    "name": "ISS",
+    "norad": 25544,
+    "type": "Space Station",
+    "agency": "NASA / Roscosmos / ESA / JAXA / CSA",
+    "launched": "1998-11-20",
+    "desc": "The International Space Station. 400km above, always occupied since 2000."
+  },
+  {
+    "id": "tiangong",
+    "name": "Tiangong CSS",
+    "norad": 48274,
+    "type": "Space Station",
+    "agency": "CNSA",
+    "launched": "2021-04-29",
+    "desc": "China's national space station. A new permanence in orbit."
+  },
+  {
+    "id": "hubble",
+    "name": "Hubble Space Telescope",
+    "norad": 20580,
+    "type": "Space Telescope",
+    "agency": "NASA / ESA",
+    "launched": "1990-04-24",
+    "desc": "Launched blind. Given sight by astronauts. Changed everything."
+  },
+  {
+    "id": "noaa-19",
+    "name": "NOAA-19",
+    "norad": 33591,
+    "type": "Weather",
+    "agency": "NOAA / NASA",
+    "launched": "2009-02-06",
+    "desc": "Fell 1.5 metres onto a factory floor during assembly. Nobody had installed the bolts."
+  },
+  {
+    "id": "terra",
+    "name": "Terra",
+    "norad": 25994,
+    "type": "Earth Observation",
+    "agency": "NASA",
+    "launched": "1999-12-18",
+    "desc": "NASA's flagship Earth observer. Watching the planet change since 1999."
+  },
+  {
+    "id": "aqua",
+    "name": "Aqua",
+    "norad": 27424,
+    "type": "Earth Observation",
+    "agency": "NASA",
+    "launched": "2002-05-04",
+    "desc": "Studying Earth's water cycle. Every ocean, every cloud."
+  },
+  {
+    "id": "sentinel-2a",
+    "name": "Sentinel-2A",
+    "norad": 40697,
+    "type": "Earth Observation",
+    "agency": "ESA",
+    "launched": "2015-06-23",
+    "desc": "ESA's land monitor. Free imagery for the entire planet, every five days."
+  },
+  {
+    "id": "landsat-8",
+    "name": "Landsat 8",
+    "norad": 39084,
+    "type": "Earth Observation",
+    "agency": "NASA / USGS",
+    "launched": "2013-02-11",
+    "desc": "Fifty years of continuous Earth observation. The longest environmental record from space."
+  },
+  {
+    "id": "cryosat-2",
+    "name": "CryoSat-2",
+    "norad": 36508,
+    "type": "Science",
+    "agency": "ESA",
+    "launched": "2010-04-08",
+    "desc": "Measuring ice loss with centimetre precision. The numbers are not reassuring."
+  },
+  {
+    "id": "swarm-a",
+    "name": "Swarm-A",
+    "norad": 39452,
+    "type": "Science",
+    "agency": "ESA",
+    "launched": "2013-11-22",
+    "desc": "Mapping Earth's magnetic field. The invisible architecture that makes life possible."
+  },
+  {
+    "id": "vanguard-1",
+    "name": "Vanguard 1",
+    "norad": 5,
+    "type": "Historical",
+    "agency": "US Navy / NASA",
+    "launched": "1958-03-17",
+    "desc": "The oldest human-made object still in orbit. Launched 1958. Will remain for 600 more years."
+  },
+  {
+    "id": "oscar-7",
+    "name": "OSCAR-7",
+    "norad": 7530,
+    "type": "Amateur Radio",
+    "agency": "AMSAT",
+    "launched": "1974-11-15",
+    "desc": "Amateur radio satellite. Died 1981. Came back to life in 2002. Used daily ever since."
+  },
+  {
+    "id": "jason-3",
+    "name": "Jason-3",
+    "norad": 41240,
+    "type": "Oceanography",
+    "agency": "NOAA / CNES / EUMETSAT / NASA",
+    "launched": "2016-01-17",
+    "desc": "Measuring sea surface height with millimetre precision. The oceans are rising."
+  },
+  {
+    "id": "starlink-30",
+    "name": "Starlink-30",
+    "norad": 44238,
+    "type": "Constellation",
+    "agency": "SpaceX",
+    "launched": "2019",
+    "desc": "One of thousands. The constellation that changed what the night sky looks like."
+  },
+  {
+    "id": "starlink-31",
+    "name": "Starlink-31",
+    "norad": 44239,
+    "type": "Constellation",
+    "agency": "SpaceX",
+    "launched": "2019",
+    "desc": "One of thousands. Astronomers are still deciding how they feel about this."
+  },
+  {
+    "id": "icesat-2",
+    "name": "ICESat-2",
+    "norad": 43613,
+    "type": "Earth Science",
+    "agency": "NASA",
+    "launched": "2018-09-15",
+    "desc": "Fires 10,000 laser pulses per second at the ice sheets. Measuring their disappearance with centimetre precision."
+  },
+  {
+    "id": "cloudsat",
+    "name": "CloudSat",
+    "norad": 29107,
+    "type": "Earth Science",
+    "agency": "NASA / CSA",
+    "launched": "2006-04-28",
+    "desc": "Flies in tight formation with four other satellites, 15 seconds apart. Has been looking straight down at clouds since 2006."
+  },
+  {
+    "id": "calipso",
+    "name": "CALIPSO",
+    "norad": 29108,
+    "type": "Earth Science",
+    "agency": "NASA / CNES",
+    "launched": "2006-04-28",
+    "desc": "Shoots a laser at aerosols and smoke. Mapped the Saharan dust that fertilises the Amazon."
+  },
+  {
+    "id": "sac-d",
+    "name": "Aquarius / SAC-D",
+    "norad": 37673,
+    "type": "Ocean Science",
+    "agency": "NASA / CONAE",
+    "launched": "2011-06-10",
+    "desc": "Mapped ocean salinity for the first time from space. Retired 2015, still up there."
+  },
+  {
+    "id": "envisat",
+    "name": "Envisat",
+    "norad": 27386,
+    "type": "Earth Observation",
+    "agency": "ESA",
+    "launched": "2002-03-01",
+    "desc": "ESA's largest Earth observation satellite. Went silent in 2012. Still orbiting."
+  }
+]
