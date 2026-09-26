@@ -15,6 +15,8 @@ const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
 const crypto = require("crypto");
+const http = require("http");
+const https = require("https");
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC = path.join(__dirname, "public");
@@ -60,12 +62,48 @@ async function writeAtomic(file, data) {
   await fsp.rename(tmp, file);
 }
 
-async function fetchWithTimeout(url, opts = {}, ms = 15000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
-  finally { clearTimeout(timer); }
+// Outbound HTTP through Node's http/https modules rather than global fetch.
+// On Render, fetch (undici) tried IPv6 first and every connection sat until
+// its 10 s connect timeout. net.connect's autoSelectFamily races IPv4 and
+// IPv6 instead, which is what the old server relied on without knowing it.
+// Returns a small fetch-like object so call sites stay readable.
+function fetchWithTimeout(url, opts = {}, ms = 15000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const lib = u.protocol === "http:" ? http : https;
+    const body = opts.body == null ? null : Buffer.from(opts.body);
+    const headers = { ...(opts.headers || {}) };
+    if (body) headers["Content-Length"] = body.length;
+
+    const req = lib.request(u, {
+      method: opts.method || "GET",
+      headers,
+      autoSelectFamily: true,
+      autoSelectFamilyAttemptTimeout: 500,
+    }, res => {
+      const chunks = [];
+      res.on("data", c => chunks.push(c));
+      res.on("error", reject);
+      res.on("end", () => {
+        const buf = Buffer.concat(chunks);
+        resolve({
+          status: res.statusCode,
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          text: async () => buf.toString("utf8"),
+          json: async () => JSON.parse(buf.toString("utf8")),
+          arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length),
+        });
+      });
+    });
+    req.setTimeout(ms, () => req.destroy(Object.assign(new Error(`timed out after ${ms} ms`), { code: "ETIMEDOUT" })));
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
 }
+
+// "fetch failed" told us nothing; the code and host do.
+const describe = e => [e.message, e.code, e.cause && e.cause.code].filter(Boolean).join(" / ");
 
 const httpError = (status, message, extra = {}) => Object.assign(new Error(message), { status }, extra);
 
@@ -152,7 +190,7 @@ async function getTle(norad) {
   } catch (e) {
     if (t) t.nextRefresh = Date.now() + TLE_RETRY_MS;
     else misses.set(norad, Date.now() + (e.noData ? MISS_NO_DATA_MS : MISS_ERROR_MS));
-    console.warn(`TLE ${norad}: ${e.message}${t ? " (keeping last known good)" : ""}`);
+    console.warn(`TLE ${norad}: ${describe(e)}${t ? " (keeping last known good)" : ""}`);
     return fresh(t) ? t : null;
   }
 }
@@ -353,7 +391,7 @@ if (require.main === module) {
     const self = process.env.RENDER_EXTERNAL_URL;
     if (self) {
       setInterval(() => {
-        fetch(`${self}/healthz`).catch(e => console.warn("Self-ping failed:", e.message));
+        fetchWithTimeout(`${self}/healthz`).catch(e => console.warn("Self-ping failed:", describe(e)));
       }, 10 * 60 * 1000).unref();
     }
   });
