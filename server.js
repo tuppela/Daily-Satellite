@@ -26,7 +26,10 @@ const AUDIO_DIR = path.join(DATA_DIR, "audio");
 const TLE_STORE = path.join(DATA_DIR, "tle-store.json");
 
 const CELESTRAK_URL = process.env.CELESTRAK_URL || "https://celestrak.org/NORAD/elements/gp.php";
-const ANTHROPIC_URL = process.env.ANTHROPIC_URL || "https://api.anthropic.com/v1/messages";
+const SATNOGS_URL = process.env.SATNOGS_URL || "https://db.satnogs.org/api/tle/";
+const TLEAPI_URL = process.env.TLEAPI_URL || "https://tle.ivanstanojevic.me/api/tle";
+const SOURCE_TIMEOUT_MS = +process.env.SOURCE_TIMEOUT_MS || 8000;
+const ANTHROPIC_URL =process.env.ANTHROPIC_URL || "https://api.anthropic.com/v1/messages";
 const ELEVENLABS_URL = process.env.ELEVENLABS_URL || "https://api.elevenlabs.io/v1/text-to-speech";
 const STORY_MODEL = process.env.STORY_MODEL || "claude-opus-4-5";
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "jiCqTo2ITOfNYppNYZtK";
@@ -151,7 +154,7 @@ function saveTleStoreSoon() {
   clearTimeout(storeTimer);
   storeTimer = setTimeout(() => {
     const out = {};
-    for (const [norad, t] of tles) out[norad] = { l1: t.l1, l2: t.l2, fetchedAt: t.fetchedAt };
+    for (const [norad, t] of tles) out[norad] = { l1: t.l1, l2: t.l2, source: t.source, fetchedAt: t.fetchedAt };
     writeAtomic(TLE_STORE, JSON.stringify(out)).catch(e => console.warn("TLE store write failed:", e.message));
   }, 500);
 }
@@ -160,19 +163,73 @@ function fresh(t) {
   return !!t && (Date.now() - epochOf(t.l1).getTime()) / 86400000 <= TLE_MAX_AGE_DAYS;
 }
 
+/* Sources, tried in order. CelesTrak is the origin; the other two republish
+ * the same public element sets. From Render, CelesTrak does not answer at all
+ * (connections time out on IPv4 and IPv6 alike), so the mirrors are not a
+ * nicety. Whatever a source returns must still pass the checksum, catalogue
+ * number and freshness checks, so a mirror cannot slip in bad data. */
+const UA = { "User-Agent": "DailySatellite/2.0 (+https://daily-satellite.onrender.com)" };
+const SOURCES = [
+  {
+    name: "CelesTrak",
+    url: n => `${CELESTRAK_URL}?CATNR=${n}&FORMAT=TLE`,
+    lines: body => (/no gp data/i.test(body) ? "" : body),
+  },
+  {
+    name: "SatNOGS",
+    url: n => `${SATNOGS_URL}?norad_cat_id=${n}&format=json`,
+    lines: body => { const a = JSON.parse(body); return a.length ? `${a[0].tle1}\n${a[0].tle2}` : ""; },
+  },
+  {
+    name: "TLE API",
+    url: n => `${TLEAPI_URL}/${n}`,
+    lines: body => { const j = JSON.parse(body); return j.line1 ? `${j.line1}\n${j.line2}` : ""; },
+    notFound: 404,
+  },
+];
+const SOURCE_DOWN_MS = 30 * 60 * 1000;
+const sourceDownUntil = new Map();             // name -> time; a source that timed out is skipped a while
+
+async function fromSource(src, norad) {
+  let res;
+  try {
+    res = await fetchWithTimeout(src.url(norad), { headers: UA }, SOURCE_TIMEOUT_MS);
+  } catch (e) {
+    sourceDownUntil.set(src.name, Date.now() + SOURCE_DOWN_MS);
+    console.warn(`${src.name} unreachable (${describe(e)}); skipping it for ${SOURCE_DOWN_MS / 60000} min`);
+    throw e;
+  }
+  if (res.status === src.notFound) return { noData: true };
+  if (!res.ok) throw new Error(`${src.name} ${res.status}`);
+  const text = src.lines(await res.text());
+  if (!text) return { noData: true };
+  const parsed = parseTle(text, norad);
+  if (!parsed) throw new Error(`${src.name} sent an invalid TLE`);
+  return { parsed };
+}
+
 async function refreshTle(norad) {
   return once(`tle:${norad}`, async () => {
-    const res = await fetchWithTimeout(`${CELESTRAK_URL}?CATNR=${norad}&FORMAT=TLE`, {
-      headers: { "User-Agent": "DailySatellite/2.0 (+https://daily-satellite.onrender.com)" },
-    });
-    const body = await res.text();
-    if (!res.ok) throw new Error(`CelesTrak ${res.status}`);
-    const parsed = parseTle(body, norad);
-    if (!parsed) {
-      const noData = /no gp data/i.test(body);
-      throw httpError(502, noData ? "no current data (decayed?)" : "invalid TLE", { noData });
+    let best = null, noData = 0, tried = 0;
+    const problems = [];
+    for (const src of SOURCES) {
+      if (Date.now() < (sourceDownUntil.get(src.name) || 0)) continue;
+      tried++;
+      try {
+        const r = await fromSource(src, norad);
+        if (r.noData) { noData++; continue; }
+        const cand = { ...r.parsed, source: src.name };
+        if (!best || epochOf(cand.l1) > epochOf(best.l1)) best = cand;
+        if (fresh(cand)) break;                      // good enough; do not bother the rest
+      } catch (e) {
+        problems.push(`${src.name}: ${describe(e)}`);
+      }
     }
-    const t = { ...parsed, fetchedAt: Date.now(), nextRefresh: Date.now() + TLE_TTL_MS };
+    if (!best) {
+      const allNoData = tried > 0 && noData === tried;
+      throw httpError(502, allNoData ? "no current data from any source (decayed?)" : problems.join("; ") || "no source reachable", { noData: allNoData });
+    }
+    const t = { l1: best.l1, l2: best.l2, source: best.source, fetchedAt: Date.now(), nextRefresh: Date.now() + TLE_TTL_MS };
     tles.set(norad, t);
     saveTleStoreSoon();
     return t;
@@ -202,7 +259,7 @@ async function allTles() {
     while (queue.length) {
       const sat = queue.shift();
       const t = await getTle(sat.norad);
-      if (t) out.push({ id: sat.id, norad: sat.norad, l1: t.l1, l2: t.l2 });
+      if (t) out.push({ id: sat.id, norad: sat.norad, l1: t.l1, l2: t.l2, source: t.source || "stored" });
     }
   };
   await Promise.all([worker(), worker(), worker(), worker()]);
@@ -382,7 +439,11 @@ if (require.main === module) {
     console.log(`Daily Satellite ${BUILD} on port ${PORT}`);
 
     // Warm the element cache so the first visitor does not wait, and keep it fresh.
-    const warm = () => allTles().then(s => console.log(`TLEs ready: ${s.length}/${CATALOGUE.length}`));
+    const warm = () => allTles().then(s => {
+      const by = {};
+      for (const x of s) by[x.source] = (by[x.source] || 0) + 1;
+      console.log(`TLEs ready: ${s.length}/${CATALOGUE.length} ${JSON.stringify(by)}`);
+    });
     warm();
     setInterval(warm, TLE_TTL_MS).unref();
 

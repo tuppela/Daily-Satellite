@@ -25,21 +25,49 @@ function issTle(date) {
   return [l1.slice(0, 68) + checksum(l1), L2];
 }
 
+function tleFor(norad, date = new Date()) {
+  const [a, b] = issTle(date);
+  const n = String(norad).padStart(5, "0");
+  const l1 = "1 " + n + a.slice(7), l2 = "2 " + n + b.slice(7);
+  return [l1.slice(0, 68) + checksum(l1), l2.slice(0, 68) + checksum(l2)];
+}
+
 // ─── upstream stand-ins ─────────────────────────────────────────────────────
-const calls = { celestrak: 0, anthropic: 0, eleven: 0 };
+const calls = { celestrak: 0, satnogs: 0, tleapi: 0, anthropic: 0, eleven: 0 };
 let celestrakUp = true;
+let celestrakHangs = false;                    // what Render actually sees: no answer at all
+let mirrorsUp = false;
 const [ISS1, ISS2] = issTle(new Date());
 
 const stub = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   if (url.pathname === "/gp.php") {
     calls.celestrak++;
+    if (celestrakHangs) return;                // never respond
     if (!celestrakUp) { res.writeHead(503); return res.end("down"); }
     const n = url.searchParams.get("CATNR");
     res.writeHead(200, { "content-type": "text/plain" });
     if (n === "25544") return res.end(`ISS (ZARYA)\r\n${ISS1}\r\n${ISS2}\r\n`);
     if (n === "20580") return res.end(`HST\n${ISS1.replace("25544", "20580")}\n${ISS2.replace("25544", "20580")}\n`); // checksum now wrong
     return res.end("No GP data found");
+  }
+  if (url.pathname === "/satnogs") {
+    calls.satnogs++;
+    if (!mirrorsUp) { res.writeHead(503); return res.end("down"); }
+    const n = +url.searchParams.get("norad_cat_id");
+    res.writeHead(200, { "content-type": "application/json" });
+    if (n !== 25544) return res.end("[]");                          // SatNOGS has no Hubble
+    const [a, b] = tleFor(25544);
+    return res.end(JSON.stringify([{ tle0: "ISS", tle1: a, tle2: b }]));
+  }
+  if (url.pathname.startsWith("/tleapi/")) {
+    calls.tleapi++;
+    if (!mirrorsUp) { res.writeHead(503); return res.end("down"); }
+    const n = +url.pathname.split("/").pop();
+    if (n !== 20580 && n !== 25544) { res.writeHead(404); return res.end("{}"); }
+    const [a, b] = tleFor(n);
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(JSON.stringify({ satelliteId: n, name: "X", line1: a, line2: b }));
   }
   let body = "";
   req.on("data", c => (body += c));
@@ -75,6 +103,9 @@ async function startServer(dataDir, extraEnv = {}) {
     PATH: process.env.PATH, PORT: String(port), DATA_DIR: dataDir,
     MAPBOX_TOKEN: "pk.test-token",
     CELESTRAK_URL: `${stubUrl}/gp.php`,
+    SATNOGS_URL: `${stubUrl}/satnogs`,
+    TLEAPI_URL: `${stubUrl}/tleapi`,
+    SOURCE_TIMEOUT_MS: "400",
     ANTHROPIC_URL: `${stubUrl}/anthropic`, ANTHROPIC_API_KEY: "sk-test",
     ELEVENLABS_URL: `${stubUrl}/eleven`, ELEVENLABS_API_KEY: "el-test",
     NO_PROXY: "127.0.0.1,localhost", no_proxy: "127.0.0.1,localhost",
@@ -156,6 +187,21 @@ test("TLEs: only valid, current data is served, cached, and never invented", asy
     const data = await (await fetch(s3.base + "/api/tles")).json();
     assert.equal(data.satellites.length, 0, "45-day-old elements are withheld");
   } finally { await s3.stop(); celestrakUp = true; }
+});
+
+test("TLEs: when CelesTrak does not answer, mirrors fill in and CelesTrak is skipped", async () => {
+  celestrakHangs = true; mirrorsUp = true;
+  const s = await startServer(tmp());
+  try {
+    const data = await (await fetch(s.base + "/api/tles")).json();
+    const got = Object.fromEntries(data.satellites.map(x => [x.id, x.source]));
+    assert.deepEqual(got, { iss: "SatNOGS", hubble: "TLE API" }, "each satellite from the first mirror that has it");
+    assert.match(s.log(), /CelesTrak unreachable/);
+    const before = calls.celestrak;
+    // Force a refresh of an uncached satellite: CelesTrak must not be asked again while marked down.
+    await fetch(s.base + "/api/tles");
+    assert.equal(calls.celestrak - before, 0, "a silent source is skipped, not waited on for every satellite");
+  } finally { await s.stop(); celestrakHangs = false; mirrorsUp = false; }
 });
 
 test("stories: catalogue ids only, cleaned, generated once even under concurrency, persisted", async () => {
