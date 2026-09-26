@@ -1,274 +1,362 @@
+/* Daily Satellite server
+ *
+ * - Serves the app with the Mapbox token and a build id injected.
+ * - /api/tles: orbital elements for the whole catalogue in one request.
+ *   Checksum-validated, cached, and persisted as last-known-good. There are
+ *   no invented fallbacks: a satellite without real data is simply absent.
+ * - /api/story and /api/narrate/:id/:hash.mp3 only accept catalogue ids, so
+ *   nobody can spend the API credits on arbitrary text.
+ * - Stories are generated once and kept. Audio is keyed by a hash of the exact
+ *   story text, so narration can never drift out of step with what is shown.
+ * - Concurrent requests for the same story or audio share one upstream call.
+ */
 const express = require("express");
 const path = require("path");
-const https = require("https");
+const fs = require("fs");
+const fsp = fs.promises;
+const crypto = require("crypto");
+
+const PORT = process.env.PORT || 3000;
+const PUBLIC = path.join(__dirname, "public");
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, ".data");
+const STORY_DIR = path.join(DATA_DIR, "stories");
+const AUDIO_DIR = path.join(DATA_DIR, "audio");
+const TLE_STORE = path.join(DATA_DIR, "tle-store.json");
+
+const CELESTRAK_URL = process.env.CELESTRAK_URL || "https://celestrak.org/NORAD/elements/gp.php";
+const ANTHROPIC_URL = process.env.ANTHROPIC_URL || "https://api.anthropic.com/v1/messages";
+const ELEVENLABS_URL = process.env.ELEVENLABS_URL || "https://api.elevenlabs.io/v1/text-to-speech";
+const STORY_MODEL = process.env.STORY_MODEL || "claude-opus-4-5";
+const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "jiCqTo2ITOfNYppNYZtK";
+
+const BUILD = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 12);
+const TLE_TTL_MS = 2 * 3600 * 1000;            // CelesTrak asks for no more than this
+const TLE_RETRY_MS = 10 * 60 * 1000;           // after a failed refresh of a known satellite
+const MISS_NO_DATA_MS = 6 * 3600 * 1000;       // decayed or unknown: it will not come back soon
+const MISS_ERROR_MS = 10 * 60 * 1000;          // network or server trouble: try again shortly
+const TLE_MAX_AGE_DAYS = 30;                   // older elements are fiction
+
+for (const d of [DATA_DIR, STORY_DIR, AUDIO_DIR]) fs.mkdirSync(d, { recursive: true });
+
+const CATALOGUE = JSON.parse(fs.readFileSync(path.join(PUBLIC, "data", "catalogue.json"), "utf8"));
+const BY_ID = new Map(CATALOGUE.map(s => [s.id, s]));
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-app.use(express.json());
+app.disable("x-powered-by");
+app.use(express.json({ limit: "4kb" }));
 
-// Fallback TLEs — used when CelesTrak is unavailable
-const FALLBACK_TLES = {
-  25544: { norad: 25544, name: "ISS (ZARYA)", l1: "1 25544U 98067A   26077.80687812  .00008636  00000+0  16833-3 0  9998", l2: "2 25544  51.6341  27.2872 0006206 206.1039 153.9638 15.48363739557747" },
-  48274: { norad: 48274, name: "TIANHE", l1: "1 48274U 21035A   26077.50000000  .00017147  00000-0  19896-3 0  9994", l2: "2 48274  41.4709 264.5225 0005423 350.0790  10.0099 15.61710805159655" },
-  20580: { norad: 20580, name: "HST", l1: "1 20580U 90037B   26077.49889012  .00001366  00000-0  64455-4 0  9991", l2: "2 20580  28.4696 175.5995 0002526  47.4731  23.4983 15.09658174 33858" },
-  33591: { norad: 33591, name: "NOAA 19", l1: "1 33591U 09005A   26077.52314815  .00000123  00000-0  87654-4 0  9998", l2: "2 33591  98.7651  89.4321 0013456 234.5678 125.3210 14.12345678901234" },
-  25994: { norad: 25994, name: "TERRA", l1: "1 25994U 99068A   26077.51766528  .00000098  00000-0  23456-4 0  9995", l2: "2 25994  98.2120 45.6789 0001234  78.9012 281.2109 14.57345678901235" },
-  27424: { norad: 27424, name: "AQUA", l1: "1 27424U 02022A   26077.50000000  .00000099  00000-0  23457-4 0  9996", l2: "2 27424  98.2121 46.6790 0001235  78.9013 281.2110 14.57345678901236" },
-  40697: { norad: 40697, name: "SENTINEL-2A", l1: "1 40697U 15028A   26077.51766528  .00000234  00000-0  34567-4 0  9998", l2: "2 40697  98.5678 34.5678 0001234  89.0123 271.1234 14.30987654901238" },
-  39084: { norad: 39084, name: "LANDSAT 8", l1: "1 39084U 13008A   26077.50000000  .00000123  00000-0  12345-4 0  9999", l2: "2 39084  98.2345 23.4567 0001345  78.9012 281.2109 14.57123456901239" },
-  36508: { norad: 36508, name: "CRYOSAT 2", l1: "1 36508U 10013A   26077.51766528  .00000567  00000-0  34567-4 0  9993", l2: "2 36508  92.0156  67.8901 0013456  89.1234 270.9876 14.52345678901234" },
-  39452: { norad: 39452, name: "SWARM-A", l1: "1 39452U 13067A   26077.52314815  .00003456  00000-0  19876-3 0  9997", l2: "2 39452  87.3567  78.9012 0008765  67.8901 292.2109 15.23456789012345" },
-  5:     { norad: 5,     name: "VANGUARD 1", l1: "1 00005U 58002B   26077.20333880 -.00000016  00000-0 -22483-4 0  9998", l2: "2 00005  34.2443 225.5254 1845686 162.2516 205.2356 10.84869164218149" },
-  7530:  { norad: 7530,  name: "OSCAR 7", l1: "1 07530U 74089B   26077.51766528  .00000078  00000-0  67890-4 0  9997", l2: "2 07530 101.7890  89.4321 0012345  56.7890 303.3210 14.28901234567890" },
-  41240: { norad: 41240, name: "JASON-3", l1: "1 41240U 16002A   26077.50000000  .00000234  00000-0  34567-4 0  9996", l2: "2 41240  66.0456 56.7890 0001234  89.0123 271.1234 12.80987654901236" },
-  44238: { norad: 44238, name: "STARLINK-30", l1: "1 44238U 19029K   26077.52314815  .00003456  00000-0  23456-3 0  9991", l2: "2 44238  53.0536  89.4321 0001234  67.8901 292.2109 15.06391602234567" },
-  44239: { norad: 44239, name: "STARLINK-31", l1: "1 44239U 19029L   26077.51766528  .00003457  00000-0  23457-3 0  9992", l2: "2 44239  53.0537  90.4322 0001235  67.8902 292.2110 15.06391602234568" },
-  43613: { norad: 43613, name: "ICESAT-2", l1: "1 43613U 18070A   26077.51766528  .00000345  00000-0  45678-4 0  9993", l2: "2 43613  92.0023  89.4321 0002345  89.0123 271.1234 15.31234567901234" },
-  29107: { norad: 29107, name: "CLOUDSAT", l1: "1 29107U 06016B   26077.50000000  .00000123  00000-0  23456-4 0  9998", l2: "2 29107  98.2112  45.6789 0001234  78.9012 281.2109 14.57987654901235" },
-  29108: { norad: 29108, name: "CALIPSO", l1: "1 29108U 06016C   26077.51766528  .00000124  00000-0  23457-4 0  9997", l2: "2 29108  98.2113  45.6790 0001235  78.9013 281.2110 14.57987654901236" },
-  37673: { norad: 37673, name: "AQUARIUS", l1: "1 37673U 11024A   26077.50000000  .00000234  00000-0  34567-4 0  9994", l2: "2 37673  98.0123  67.8901 0012345  56.7890 303.3210 14.72345678901237" },
-  27386: { norad: 27386, name: "ENVISAT", l1: "1 27386U 02009A   26077.51766528  .00000123  00000-0  23456-4 0  9997", l2: "2 27386  98.5678 34.5678 0002345  78.9012 281.2109 14.37654321901237" },
-};
-const tleCache = {};
-const CACHE_TTL = 60 * 60 * 1000;
+// ─── shared helpers ───────────────────────────────────────────────────────
+const inflight = new Map();
+function once(key, fn) {
+  if (inflight.has(key)) return inflight.get(key);
+  const p = Promise.resolve().then(fn).finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
 
-function httpsGet(url) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { "User-Agent": "OrbitalRegister/1.0" } }, (res) => {
-      let data = "";
-      res.on("data", chunk => data += chunk);
-      res.on("end", () => resolve({ status: res.statusCode, body: data }));
+async function writeAtomic(file, data) {
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await fsp.writeFile(tmp, data);
+  await fsp.rename(tmp, file);
+}
+
+async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(timer); }
+}
+
+const httpError = (status, message, extra = {}) => Object.assign(new Error(message), { status }, extra);
+
+// ─── TLEs ─────────────────────────────────────────────────────────────────
+function checksumOk(line) {
+  if (typeof line !== "string" || line.length < 69) return false;
+  let sum = 0;
+  for (let i = 0; i < 68; i++) {
+    const c = line[i];
+    if (c >= "0" && c <= "9") sum += c.charCodeAt(0) - 48;
+    else if (c === "-") sum += 1;
+  }
+  return sum % 10 === line.charCodeAt(68) - 48;
+}
+
+function epochOf(l1) {
+  const yy = +l1.slice(18, 20), doy = +l1.slice(20, 32);
+  const year = yy < 57 ? 2000 + yy : 1900 + yy;
+  return new Date(Date.UTC(year, 0, 1) + (doy - 1) * 86400000);
+}
+
+function parseTle(body, norad) {
+  const lines = String(body).split(/\r?\n/).map(l => l.trimEnd()).filter(Boolean);
+  const l1 = lines.find(l => l.startsWith("1 ") && l.length >= 69);
+  const l2 = lines.find(l => l.startsWith("2 ") && l.length >= 69);
+  if (!l1 || !l2 || !checksumOk(l1) || !checksumOk(l2)) return null;
+  if (+l1.slice(2, 7) !== norad || +l2.slice(2, 7) !== norad) return null;
+  return { l1: l1.slice(0, 69), l2: l2.slice(0, 69) };
+}
+
+const tles = new Map();                        // norad -> { l1, l2, fetchedAt, nextRefresh }
+const misses = new Map();                      // norad -> do not ask CelesTrak again before this time
+
+function loadTleStore() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(TLE_STORE, "utf8"));
+    for (const [norad, t] of Object.entries(saved)) {
+      if (checksumOk(t.l1) && checksumOk(t.l2)) tles.set(+norad, { ...t, nextRefresh: 0 });
+    }
+  } catch (e) { /* first run */ }
+}
+
+let storeTimer = null;
+function saveTleStoreSoon() {
+  clearTimeout(storeTimer);
+  storeTimer = setTimeout(() => {
+    const out = {};
+    for (const [norad, t] of tles) out[norad] = { l1: t.l1, l2: t.l2, fetchedAt: t.fetchedAt };
+    writeAtomic(TLE_STORE, JSON.stringify(out)).catch(e => console.warn("TLE store write failed:", e.message));
+  }, 500);
+}
+
+function fresh(t) {
+  return !!t && (Date.now() - epochOf(t.l1).getTime()) / 86400000 <= TLE_MAX_AGE_DAYS;
+}
+
+async function refreshTle(norad) {
+  return once(`tle:${norad}`, async () => {
+    const res = await fetchWithTimeout(`${CELESTRAK_URL}?CATNR=${norad}&FORMAT=TLE`, {
+      headers: { "User-Agent": "DailySatellite/2.0 (+https://daily-satellite.onrender.com)" },
     });
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error("Timeout")); });
-    req.on("error", reject);
+    const body = await res.text();
+    if (!res.ok) throw new Error(`CelesTrak ${res.status}`);
+    const parsed = parseTle(body, norad);
+    if (!parsed) {
+      const noData = /no gp data/i.test(body);
+      throw httpError(502, noData ? "no current data (decayed?)" : "invalid TLE", { noData });
+    }
+    const t = { ...parsed, fetchedAt: Date.now(), nextRefresh: Date.now() + TLE_TTL_MS };
+    tles.set(norad, t);
+    saveTleStoreSoon();
+    return t;
   });
 }
 
-function httpsPost(hostname, path, data, headers) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify(data);
-    const options = {
-      hostname, path, method: "POST",
-      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body), ...headers }
-    };
-    const req = https.request(options, (res) => {
-      let d = "";
-      res.on("data", chunk => d += chunk);
-      res.on("end", () => resolve({ status: res.statusCode, body: d }));
-    });
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error("Timeout")); });
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
+async function getTle(norad) {
+  const t = tles.get(norad);
+  if (t && Date.now() < t.nextRefresh) return fresh(t) ? t : null;
+  if (!t && Date.now() < (misses.get(norad) || 0)) return null;   // asked recently, nothing there
+  try {
+    const got = await refreshTle(norad);
+    misses.delete(norad);
+    return got;
+  } catch (e) {
+    if (t) t.nextRefresh = Date.now() + TLE_RETRY_MS;
+    else misses.set(norad, Date.now() + (e.noData ? MISS_NO_DATA_MS : MISS_ERROR_MS));
+    console.warn(`TLE ${norad}: ${e.message}${t ? " (keeping last known good)" : ""}`);
+    return fresh(t) ? t : null;
+  }
 }
 
-app.get("/api/test", async (req, res) => {
+async function allTles() {
+  const out = [];
+  const queue = CATALOGUE.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const sat = queue.shift();
+      const t = await getTle(sat.norad);
+      if (t) out.push({ id: sat.id, norad: sat.norad, l1: t.l1, l2: t.l2 });
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  const order = new Map(CATALOGUE.map((s, i) => [s.id, i]));
+  return out.sort((a, b) => order.get(a.id) - order.get(b.id));
+}
+
+app.get("/api/tles", async (req, res) => {
   try {
-    const url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE";
-    const { status, body } = await httpsGet(url);
-    res.json({ status, bodyPreview: body.slice(0, 300) });
-  } catch(e) {
-    res.json({ error: e.message });
+    const satellites = await allTles();
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({ generatedAt: new Date().toISOString(), satellites });
+  } catch (e) {
+    res.status(500).json({ error: e.message, satellites: [] });
   }
 });
 
-app.get("/api/tle/:norad", async (req, res) => {
-  const norad = parseInt(req.params.norad);
-  if (!norad || isNaN(norad)) return res.status(400).json({ error: "Invalid NORAD ID" });
+// ─── stories ──────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are the keeper of a very old archive of objects in Earth orbit. You have been alone with this material for a long time and have developed a deep, unsentimental familiarity with each object — when it was made, why, what it has witnessed, what became of it. You write as someone who is genuinely delighted when another person shows interest, but who expresses that delight quietly. You do not perform enthusiasm. You do not oversell. You trust the facts to be interesting, because they are. Your tone is warm but never sentimental. Precise but never cold. You allow dark things — failures, cover-ups, debris fields, forgotten machines — to simply be what they are, without dramatising or softening them. When something is absurd, you note it briefly and move on. You write in the tradition of Mika Waltari and long-form literary journalism — flowing prose, no lists, no headers. You are helping someone understand something for the first time and you take that quietly seriously. Write until the story is told, then stop. Some entries will be 300 words, some 600. Follow the shape of the story. Every entry should end by opening outward — from the specific satellite into something larger about time, human ambition, or the strangeness of what we have put into the sky.`;
 
-  const cached = tleCache[norad];
-  if (cached && Date.now() - cached.time < CACHE_TTL) return res.json(cached.data);
+const stories = new Map();                     // id -> { text, hash }
 
+const hashOf = text => crypto.createHash("sha256").update(text).digest("hex").slice(0, 16);
+
+// Whatever the model returns, keep only prose paragraphs.
+function cleanStory(raw) {
+  return String(raw)
+    .split(/\n+/)
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith("#") && !/^[-*_]{3,}$/.test(l))
+    .join("\n\n");
+}
+
+async function readStory(id) {
+  if (stories.has(id)) return stories.get(id);
   try {
-    const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${norad}&FORMAT=TLE`;
-    const { status, body } = await httpsGet(url);
-    if (status !== 200) return res.status(502).json({ error: `CelesTrak ${status}` });
-
-    const lines = body.trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-    let name = null, l1 = null, l2 = null;
-    for (const line of lines) {
-      if (line.startsWith("1 ") && line.length > 50) l1 = line;
-      else if (line.startsWith("2 ") && line.length > 50) l2 = line;
-      else if (!name && !line.startsWith("1 ") && !line.startsWith("2 ")) name = line;
+    const saved = JSON.parse(await fsp.readFile(path.join(STORY_DIR, `${id}.json`), "utf8"));
+    if (saved && saved.text) {
+      const s = { text: saved.text, hash: hashOf(saved.text) };
+      stories.set(id, s);
+      return s;
     }
-    if (!l1 || !l2) {
-      const fallback = FALLBACK_TLES[norad];
-      if (fallback) { tleCache[norad] = { time: Date.now(), data: fallback }; return res.json(fallback); }
-      return res.status(404).json({ error: `No TLE for ${norad}` });
+  } catch (e) { /* not written yet */ }
+  return null;
+}
+
+async function getStory(id) {
+  const existing = await readStory(id);
+  if (existing) return existing;
+
+  return once(`story:${id}`, async () => {
+    const again = await readStory(id);
+    if (again) return again;
+
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw httpError(503, "The archive is closed (no Anthropic key configured).");
+
+    const sat = BY_ID.get(id);
+    const res = await fetchWithTimeout(ANTHROPIC_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: STORY_MODEL,
+        max_tokens: 1400,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: `Write an entry for the satellite: ${sat.name}. What we know about it: ${sat.desc}` }],
+      }),
+    }, 90000);
+
+    if (!res.ok) {
+      console.error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      throw httpError(502, "The archivist could not be reached.");
     }
+    const data = await res.json();
+    const text = cleanStory((data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n"));
+    if (!text) throw httpError(502, "The archivist returned an empty page.");
 
-    const result = { norad, name: name ? name.trim() : String(norad), l1, l2 };
-    tleCache[norad] = { time: Date.now(), data: result };
-    res.json(result);
-  } catch (err) {
-    const fallback = FALLBACK_TLES[norad];
-    if (fallback) { tleCache[norad] = { time: Date.now(), data: fallback }; return res.json(fallback); }
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── STORY ENDPOINT ──────────────────────────────────────────────────────────
-const storyCache = {};
+    await writeAtomic(path.join(STORY_DIR, `${id}.json`),
+      JSON.stringify({ id, text, model: STORY_MODEL, createdAt: new Date().toISOString() }, null, 2));
+    const s = { text, hash: hashOf(text) };
+    stories.set(id, s);
+    return s;
+  });
+}
 
 app.post("/api/story", async (req, res) => {
-  const { id, name, desc } = req.body;
-  if (!name) return res.status(400).json({ error: "Missing satellite name" });
-
-  const cacheKey = id || name;
-  const cached = storyCache[cacheKey];
-  if (cached && Date.now() - cached.time < 24 * 60 * 60 * 1000) {
-    return res.json(cached.data);
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API key not configured" });
-
-  const systemPrompt = `You are the keeper of a very old archive of objects in Earth orbit. You have been alone with this material for a long time and have developed a deep, unsentimental familiarity with each object — when it was made, why, what it has witnessed, what became of it. You write as someone who is genuinely delighted when another person shows interest, but who expresses that delight quietly. You do not perform enthusiasm. You do not oversell. You trust the facts to be interesting, because they are. Your tone is warm but never sentimental. Precise but never cold. You allow dark things — failures, cover-ups, debris fields, forgotten machines — to simply be what they are, without dramatising or softening them. When something is absurd, you note it briefly and move on. You write in the tradition of Mika Waltari and long-form literary journalism — flowing prose, no lists, no headers. You are helping someone understand something for the first time and you take that quietly seriously. Write until the story is told, then stop. Some entries will be 300 words, some 600. Follow the shape of the story. Every entry should end by opening outward — from the specific satellite into something larger about time, human ambition, or the strangeness of what we have put into the sky.`;
-
+  const id = req.body && req.body.id;
+  if (!BY_ID.has(id)) return res.status(404).json({ error: "Unknown satellite." });
   try {
-    const { status, body } = await httpsPost(
-      "api.anthropic.com",
-      "/v1/messages",
-      {
-        model: "claude-opus-4-5",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: "user", content: `Write an entry for the satellite: ${name}. What we know about it: ${desc || ""}` }]
-      },
-      {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      }
-    );
-
-    if (status !== 200) {
-      console.error(`Anthropic API error ${status}: ${body.slice(0, 200)}`);
-      return res.status(502).json({ error: `API error ${status}` });
-    }
-
-    const parsed = JSON.parse(body);
-    const text = parsed.content?.[0]?.text || "";
-    const result = { text };
-    storyCache[cacheKey] = { time: Date.now(), data: result };
-    res.json(result);
-  } catch (err) {
-    console.error("Story error:", err.message);
-    res.status(500).json({ error: err.message });
+    const s = await getStory(id);
+    res.json({ text: s.text, audio: `/api/narrate/${id}/${s.hash}.mp3` });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
-// ─── NARRATOR ENDPOINT ───────────────────────────────────────────────────────
-const fs = require("fs");
-const crypto = require("crypto");
-const AUDIO_CACHE_DIR = path.join(__dirname, "audio-cache");
-if (!fs.existsSync(AUDIO_CACHE_DIR)) fs.mkdirSync(AUDIO_CACHE_DIR);
+// ─── narration ────────────────────────────────────────────────────────────
+// Read the prose, not the markup.
+const spoken = text => text.replace(/\*([^*\n]+)\*/g, "$1");
 
-// Clear bad Envisat cache on startup
-const badCache = path.join(AUDIO_CACHE_DIR, "envisat.mp3");
-if (fs.existsSync(badCache)) { fs.unlinkSync(badCache); console.log("Cleared bad Envisat cache"); }
+async function getAudio(id, story) {
+  const file = path.join(AUDIO_DIR, `${id}-${story.hash}.mp3`);
+  try { await fsp.access(file); return file; } catch (e) { /* generate */ }
 
-app.post("/api/narrate", async (req, res) => {
-  const { text, satId } = req.body;
-  if (!text) return res.status(400).json({ error: "Missing text" });
+  return once(`audio:${id}:${story.hash}`, async () => {
+    try { await fsp.access(file); return file; } catch (e) { /* still missing */ }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "ElevenLabs API key not configured" });
+    const key = process.env.ELEVENLABS_API_KEY;
+    if (!key) throw httpError(503, "Narration is not configured.");
 
-  // Check cache first
-  const cacheKey = satId || crypto.createHash("md5").update(text).digest("hex");
-  const cachePath = path.join(AUDIO_CACHE_DIR, `${cacheKey}.mp3`);
-
-  if (fs.existsSync(cachePath)) {
-    console.log(`Audio cache hit: ${cacheKey}`);
-    res.setHeader("Content-Type", "audio/mpeg");
-    fs.createReadStream(cachePath).pipe(res);
-    return;
-  }
-
-  const voiceId = "jiCqTo2ITOfNYppNYZtK";
-
-  try {
-    const body = JSON.stringify({
-      text,
-      model_id: "eleven_turbo_v2_5",
-      voice_settings: { stability: 0.55, similarity_boost: 0.75 }
-    });
-
-    const options = {
-      hostname: "api.elevenlabs.io",
-      path: `/v1/text-to-speech/${voiceId}`,
+    const res = await fetchWithTimeout(`${ELEVENLABS_URL}/${VOICE_ID}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "xi-api-key": apiKey,
-        "Accept": "audio/mpeg",
-        "Content-Length": Buffer.byteLength(body)
-      }
-    };
+      headers: { "Content-Type": "application/json", "xi-api-key": key, Accept: "audio/mpeg" },
+      body: JSON.stringify({
+        text: spoken(story.text),
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.55, similarity_boost: 0.75 },
+      }),
+    }, 120000);
 
-    const audioReq = https.request(options, (audioRes) => {
-      if (audioRes.statusCode !== 200) {
-        let err = "";
-        audioRes.on("data", d => err += d);
-        audioRes.on("end", () => res.status(502).json({ error: `ElevenLabs ${audioRes.statusCode}: ${err.slice(0,200)}` }));
-        return;
-      }
+    if (!res.ok) {
+      console.error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      throw httpError(502, `Narration unavailable (${res.status}).`);
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 1000) throw httpError(502, "Narration came back empty.");
+    await writeAtomic(file, buf);
+    console.log(`Audio cached: ${path.basename(file)} (${Math.round(buf.length / 1024)} KB)`);
+    return file;
+  });
+}
 
-      // Collect chunks, then serve and cache
-      const chunks = [];
-      audioRes.on("data", chunk => chunks.push(chunk));
-      audioRes.on("end", () => {
-        const buffer = Buffer.concat(chunks);
-        // Save to cache
-        fs.writeFile(cachePath, buffer, err => {
-          if (err) console.error("Cache write error:", err);
-          else console.log(`Audio cached: ${cacheKey}`);
-        });
-        // Serve to client
-        res.setHeader("Content-Type", "audio/mpeg");
-        res.end(buffer);
-      });
-    });
-
-    audioReq.setTimeout(30000, () => { audioReq.destroy(); res.status(504).json({ error: "Timeout" }); });
-    audioReq.on("error", err => res.status(500).json({ error: err.message }));
-    audioReq.write(body);
-    audioReq.end();
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+app.get("/api/narrate/:id/:hash.mp3", async (req, res) => {
+  const { id, hash } = req.params;
+  if (!BY_ID.has(id)) return res.status(404).end();
+  try {
+    const story = await readStory(id);
+    if (!story) return res.status(404).json({ error: "No entry yet." });
+    if (story.hash !== hash) return res.status(410).json({ error: "This entry has been rewritten." });
+    const file = await getAudio(id, story);
+    // Content-addressed, so it can be cached forever. sendFile handles Range
+    // requests, which mobile Safari needs for audio.
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    res.type("audio/mpeg");
+    res.sendFile(file);
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
-const indexPath = path.join(__dirname, "public", "index.html");
 
-// Serve index.html with token injected for ALL html requests
+// ─── app shell ────────────────────────────────────────────────────────────
+app.get("/healthz", (req, res) => res.json({ ok: true, build: BUILD, satellites: tles.size }));
+
+const indexPath = path.join(PUBLIC, "index.html");
 function serveIndex(req, res) {
-  let html = require("fs").readFileSync(indexPath, "utf8");
-  const token = process.env.MAPBOX_TOKEN || "";
-  html = html.replace('window.MAPBOX_TOKEN || ""', `"${token}"`);
-  res.setHeader("Content-Type", "text/html");
-  res.send(html);
+  const token = JSON.stringify(process.env.MAPBOX_TOKEN || "");
+  const html = fs.readFileSync(indexPath, "utf8")
+    .replace('window.MAPBOX_TOKEN || ""', token)
+    .replace(/__BUILD__/g, BUILD);
+  res.set("Cache-Control", "no-cache");
+  res.type("html").send(html);
 }
 
 app.get("/", serveIndex);
-
-// Static files (JS, CSS, images) — but NOT index.html
-app.use(express.static(path.join(__dirname, "public"), { index: false }));
-
-// All other routes serve index.html with token
+app.use(express.static(PUBLIC, {
+  index: false,
+  setHeaders: res => res.set("Cache-Control", "no-cache"),     // revalidate; cheap 304s
+}));
+app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
 app.get("*", serveIndex);
 
-app.listen(PORT, () => {
-  console.log(`Orbital Register running on port ${PORT}`);
+// ─── start ────────────────────────────────────────────────────────────────
+loadTleStore();
 
-  // Ping self every 10 minutes to prevent Render free tier sleep
-  const SELF_URL = process.env.RENDER_EXTERNAL_URL;
-  if (SELF_URL) {
-    setInterval(() => {
-      fetch(`${SELF_URL}/api/test`)
-        .then(() => console.log("Self-ping OK"))
-        .catch(e => console.warn("Self-ping failed:", e.message));
-    }, 10 * 60 * 1000);
-    console.log(`Self-ping active → ${SELF_URL}`);
-  }
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Daily Satellite ${BUILD} on port ${PORT}`);
+
+    // Warm the element cache so the first visitor does not wait, and keep it fresh.
+    const warm = () => allTles().then(s => console.log(`TLEs ready: ${s.length}/${CATALOGUE.length}`));
+    warm();
+    setInterval(warm, TLE_TTL_MS).unref();
+
+    // Keep the free Render instance awake by visiting ourselves. This hits a
+    // local health check, never CelesTrak.
+    const self = process.env.RENDER_EXTERNAL_URL;
+    if (self) {
+      setInterval(() => {
+        fetch(`${self}/healthz`).catch(e => console.warn("Self-ping failed:", e.message));
+      }, 10 * 60 * 1000).unref();
+    }
+  });
+}
+
+module.exports = { app, checksumOk, parseTle, epochOf, cleanStory };
