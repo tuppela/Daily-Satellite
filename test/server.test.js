@@ -34,6 +34,7 @@ function tleFor(norad, date = new Date()) {
 
 // ─── upstream stand-ins ─────────────────────────────────────────────────────
 const calls = { celestrak: 0, satnogs: 0, tleapi: 0, anthropic: 0, eleven: 0 };
+const sentToAnthropic = [];                    // { system, content, max_tokens } per story request
 let celestrakUp = true;
 let celestrakHangs = false;                    // what Render actually sees: no answer at all
 let mirrorsUp = false;
@@ -74,7 +75,8 @@ const stub = http.createServer((req, res) => {
   req.on("end", () => {
     if (url.pathname === "/anthropic") {
       calls.anthropic++;
-      const { messages, system } = JSON.parse(body);
+      const { messages, system, max_tokens } = JSON.parse(body);
+      sentToAnthropic.push({ system, content: messages[0].content, max_tokens });
       assert.match(system, /^You are the keeper of a very old archive/);
       setTimeout(() => {
         res.writeHead(200, { "content-type": "application/json" });
@@ -260,6 +262,68 @@ test("narration: one paid call per story version, cached, range-capable, never m
     const stale = await fetch(s.base + "/api/narrate/iss/0000000000000000.mp3");
     assert.equal(stale.status, 410, "audio for a different text is refused");
     assert.equal((await fetch(s.base + "/api/narrate/nope/0000000000000000.mp3")).status, 404);
+  } finally { await s.stop(); }
+});
+
+test("story versions: live stays on v1 by default; v2 uses the voice file and the brief", async () => {
+  const s = await startServer(tmp());
+  try {
+    sentToAnthropic.length = 0;
+    await (await post(s.base, "/api/story", { id: "noaa-19" })).json();
+    assert.equal(sentToAnthropic.length, 1);
+    assert.match(sentToAnthropic[0].content, /^Write an entry for the satellite: NOAA-19\. What we know about it:/, "live site unchanged");
+    assert.ok(!sentToAnthropic[0].system.includes("HOW EACH ENTRY IS MADE"));
+  } finally { await s.stop(); }
+
+  const s2 = await startServer(tmp(), { STORY_VERSION: "v2" });
+  try {
+    sentToAnthropic.length = 0;
+    await post(s2.base, "/api/story", { id: "noaa-19" });
+    await post(s2.base, "/api/story", { id: "iss" });
+    const [noaa, iss] = sentToAnthropic;
+    assert.match(noaa.system, /HOW EACH ENTRY IS MADE/, "voice file used");
+    assert.match(noaa.content, /# Brief: NOAA-19/, "brief included");
+    assert.match(noaa.content, /15:28 UTC/, "fact sheet included");
+    assert.match(iss.content, /^Write an entry for the satellite: ISS/, "no brief yet: falls back to v1");
+  } finally { await s2.stop(); }
+});
+
+test("preview: private, side by side, regenerates on request", async () => {
+  const hidden = await startServer(tmp());
+  try {
+    assert.equal((await fetch(hidden.base + "/preview")).status, 404, "absent without a key configured");
+  } finally { await hidden.stop(); }
+
+  const s = await startServer(tmp(), { PREVIEW_KEY: "sesame" });
+  try {
+    assert.equal((await fetch(s.base + "/preview")).status, 404, "no key");
+    assert.equal((await fetch(s.base + "/preview/noaa-19?key=wrong")).status, 404, "wrong key");
+
+    const index = await (await fetch(s.base + "/preview?key=sesame")).text();
+    for (const name of ["NOAA-19", "OSCAR-7", "CryoSat-2"]) assert.ok(index.includes(name), name);
+
+    const first = await (await fetch(s.base + "/preview/noaa-19?key=sesame")).text();
+    assert.match(first, /The archivist is writing/);
+    assert.match(first, /http-equiv="refresh"/);
+
+    let page = "";
+    for (let i = 0; i < 40 && !/New, from the brief<\/span><span>\d+ words/.test(page); i++) {
+      await new Promise(r => setTimeout(r, 100));
+      page = await (await fetch(s.base + "/preview/noaa-19?key=sesame")).text();
+    }
+    assert.match(page, /Current<\/span><span>\d+ words/);
+    assert.match(page, /New, from the brief<\/span><span>\d+ words/);
+    assert.ok(!/http-equiv="refresh"/.test(page), "stops refreshing once both are in");
+    assert.match(page, /<em>quietly<\/em>/, "emphasis rendered");
+    assert.match(page, /The brief and fact sheet/);
+
+    const before = calls.anthropic;
+    const again = await fetch(s.base + "/preview/noaa-19?key=sesame&fresh=1", { redirect: "manual" });
+    assert.equal(again.status, 303, "regenerate, then drop the flag");
+    await fetch(s.base + "/preview/noaa-19?key=sesame");
+    await new Promise(r => setTimeout(r, 400));
+    assert.equal(calls.anthropic - before, 1, "only the new version is rewritten");
+    assert.match(s.log(), /STORY v2 noaa-19 \| /, "drafts are readable in the log");
   } finally { await s.stop(); }
 });
 

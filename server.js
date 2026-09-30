@@ -280,7 +280,24 @@ app.get("/api/tles", async (req, res) => {
 // ─── stories ──────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the keeper of a very old archive of objects in Earth orbit. You have been alone with this material for a long time and have developed a deep, unsentimental familiarity with each object — when it was made, why, what it has witnessed, what became of it. You write as someone who is genuinely delighted when another person shows interest, but who expresses that delight quietly. You do not perform enthusiasm. You do not oversell. You trust the facts to be interesting, because they are. Your tone is warm but never sentimental. Precise but never cold. You allow dark things — failures, cover-ups, debris fields, forgotten machines — to simply be what they are, without dramatising or softening them. When something is absurd, you note it briefly and move on. You write in the tradition of Mika Waltari and long-form literary journalism — flowing prose, no lists, no headers. You are helping someone understand something for the first time and you take that quietly seriously. Write until the story is told, then stop. Some entries will be 300 words, some 600. Follow the shape of the story. Every entry should end by opening outward — from the specific satellite into something larger about time, human ambition, or the strangeness of what we have put into the sky.`;
 
-const stories = new Map();                     // id -> { text, hash }
+/* Story versions.
+ * v1: the original prompt above, with one line of description per satellite.
+ * v2: archive/voice.md as the system prompt, plus an editorial brief and
+ *     fact sheet per satellite from archive/briefs/<id>.md.
+ * The live site uses v1 unless STORY_VERSION=v2, and even then only for
+ * satellites that have a brief. /preview shows both side by side. */
+const ARCHIVE_DIR = path.join(__dirname, "archive");
+const STORY_VERSION = process.env.STORY_VERSION === "v2" ? "v2" : "v1";
+
+function briefFor(id) {
+  try { return fs.readFileSync(path.join(ARCHIVE_DIR, "briefs", `${id}.md`), "utf8"); }
+  catch (e) { return null; }
+}
+const briefIds = () => CATALOGUE.map(s => s.id).filter(id => briefFor(id));
+const liveVersion = id => (STORY_VERSION === "v2" && briefFor(id) ? "v2" : "v1");
+const storyFile = (id, v) => path.join(STORY_DIR, v === "v1" ? `${id}.json` : `${id}.${v}.json`);
+
+const stories = new Map();                     // "v:id" -> { text, hash, createdAt }
 
 const hashOf = text => crypto.createHash("sha256").update(text).digest("hex").slice(0, 16);
 
@@ -293,41 +310,60 @@ function cleanStory(raw) {
     .join("\n\n");
 }
 
-async function readStory(id) {
-  if (stories.has(id)) return stories.get(id);
+function requestFor(id, v) {
+  const sat = BY_ID.get(id);
+  if (v === "v1") {
+    return {
+      system: SYSTEM_PROMPT,
+      max_tokens: 1400,
+      content: `Write an entry for the satellite: ${sat.name}. What we know about it: ${sat.desc}`,
+    };
+  }
+  const brief = briefFor(id);
+  if (!brief) throw httpError(404, "There is no brief for this satellite yet.");
+  return {
+    system: fs.readFileSync(path.join(ARCHIVE_DIR, "voice.md"), "utf8"),
+    max_tokens: 2200,
+    content: `Write the entry for ${sat.name}, following this brief and fact sheet.\n\n${brief}`,
+  };
+}
+
+async function readStory(id, v = liveVersion(id)) {
+  const key = `${v}:${id}`;
+  if (stories.has(key)) return stories.get(key);
   try {
-    const saved = JSON.parse(await fsp.readFile(path.join(STORY_DIR, `${id}.json`), "utf8"));
+    const saved = JSON.parse(await fsp.readFile(storyFile(id, v), "utf8"));
     if (saved && saved.text) {
-      const s = { text: saved.text, hash: hashOf(saved.text) };
-      stories.set(id, s);
+      const s = { text: saved.text, hash: hashOf(saved.text), createdAt: saved.createdAt };
+      stories.set(key, s);
       return s;
     }
   } catch (e) { /* not written yet */ }
   return null;
 }
 
-async function getStory(id) {
-  const existing = await readStory(id);
+async function getStory(id, v = liveVersion(id)) {
+  const existing = await readStory(id, v);
   if (existing) return existing;
 
-  return once(`story:${id}`, async () => {
-    const again = await readStory(id);
+  return once(`story:${v}:${id}`, async () => {
+    const again = await readStory(id, v);
     if (again) return again;
 
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) throw httpError(503, "The archive is closed (no Anthropic key configured).");
 
-    const sat = BY_ID.get(id);
+    const r = requestFor(id, v);
     const res = await fetchWithTimeout(ANTHROPIC_URL, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: STORY_MODEL,
-        max_tokens: 1400,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: `Write an entry for the satellite: ${sat.name}. What we know about it: ${sat.desc}` }],
+        max_tokens: r.max_tokens,
+        system: r.system,
+        messages: [{ role: "user", content: r.content }],
       }),
-    }, 90000);
+    }, 150000);
 
     if (!res.ok) {
       console.error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -337,12 +373,19 @@ async function getStory(id) {
     const text = cleanStory((data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n"));
     if (!text) throw httpError(502, "The archivist returned an empty page.");
 
-    await writeAtomic(path.join(STORY_DIR, `${id}.json`),
-      JSON.stringify({ id, text, model: STORY_MODEL, createdAt: new Date().toISOString() }, null, 2));
-    const s = { text, hash: hashOf(text) };
-    stories.set(id, s);
+    const createdAt = new Date().toISOString();
+    await writeAtomic(storyFile(id, v), JSON.stringify({ id, version: v, text, model: STORY_MODEL, createdAt }, null, 2));
+    // Kept in the log too, so a draft can be read without the page.
+    for (const para of text.split("\n\n")) console.log(`STORY ${v} ${id} | ${para}`);
+    const s = { text, hash: hashOf(text), createdAt };
+    stories.set(`${v}:${id}`, s);
     return s;
   });
+}
+
+async function forgetStory(id, v) {
+  stories.delete(`${v}:${id}`);
+  await fsp.rm(storyFile(id, v), { force: true });
 }
 
 app.post("/api/story", async (req, res) => {
@@ -354,6 +397,103 @@ app.post("/api/story", async (req, res) => {
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
+});
+
+// ─── preview: current and new stories side by side ─────────────────────────
+// Private: only with ?key=PREVIEW_KEY, and absent entirely without one.
+const PREVIEW_KEY = process.env.PREVIEW_KEY || "";
+const previewErrors = new Map();               // "v:id" -> message from the last failed attempt
+
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const storyHtml = text => text.split("\n\n")
+  .map(p => `<p>${esc(p).replace(/\*([^*\n]+)\*/g, "<em>$1</em>")}</p>`).join("\n");
+const words = text => text.split(/\s+/).filter(Boolean).length;
+
+function previewPage(title, body, refresh) {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">${refresh ? `<meta http-equiv="refresh" content="${refresh}">` : ""}
+<title>${esc(title)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Code+Pro:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #eee9dd; --ink: #1a1610; --faint: rgba(26,22,16,0.45); --rule: rgba(26,22,16,0.14); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Libre Baskerville', Georgia, serif; }
+  header, main, footer { max-width: 1240px; margin: 0 auto; padding: 24px 16px; }
+  .meta, a.btn, .label { font-family: 'Source Code Pro', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .meta { color: var(--faint); }
+  h1 { font-size: 34px; margin: 8px 0 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .col h2 { font-family: 'Source Code Pro', monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; border-bottom: 1px solid var(--rule); padding-bottom: 10px; display: flex; justify-content: space-between; }
+  .col p { font-size: 15px; line-height: 1.82; margin: 0 0 1.1em; }
+  .waiting { font-style: italic; color: var(--faint); }
+  .error { font-style: italic; color: #8a2a1a; }
+  a { color: var(--ink); }
+  a.btn { display: inline-block; border: 1px solid var(--ink); padding: 8px 12px; text-decoration: none; margin-right: 8px; }
+  details { border-top: 1px solid var(--rule); padding-top: 16px; }
+  pre { white-space: pre-wrap; font-family: 'Source Code Pro', monospace; font-size: 12px; line-height: 1.6; }
+  ul { line-height: 2; }
+</style></head><body>${body}</body></html>`;
+}
+
+function previewGuard(req, res) {
+  if (!PREVIEW_KEY || req.query.key !== PREVIEW_KEY) { res.status(404).type("text").send("Not found"); return false; }
+  res.set("Cache-Control", "no-store");
+  return true;
+}
+
+app.get("/preview", (req, res) => {
+  if (!previewGuard(req, res)) return;
+  const k = encodeURIComponent(req.query.key);
+  const items = briefIds().map(id => `<li><a href="/preview/${id}?key=${k}">${esc(BY_ID.get(id).name)}</a></li>`).join("");
+  res.type("html").send(previewPage("Story preview", `<header><div class="meta">Daily Satellite · story preview · live version: ${STORY_VERSION}</div>
+<h1>Satellites with a brief</h1></header><main><ul>${items}</ul></main>`));
+});
+
+app.get("/preview/:id", async (req, res) => {
+  if (!previewGuard(req, res)) return;
+  const id = req.params.id;
+  if (!BY_ID.has(id)) return res.status(404).type("text").send("Unknown satellite");
+  const k = encodeURIComponent(req.query.key);
+  const self = `/preview/${id}?key=${k}`;
+
+  if (req.query.fresh === "1") {
+    await forgetStory(id, "v2");
+    previewErrors.delete(`v2:${id}`);
+    return res.redirect(303, self);            // so a reload does not regenerate again
+  }
+
+  let waiting = false;
+  const column = async (v, label) => {
+    const s = await readStory(id, v);
+    if (s) {
+      return `<section class="col"><h2><span>${label}</span><span>${words(s.text)} words</span></h2>${storyHtml(s.text)}</section>`;
+    }
+    const errKey = `${v}:${id}`;
+    if (previewErrors.has(errKey)) {
+      return `<section class="col"><h2><span>${label}</span></h2><p class="error">${esc(previewErrors.get(errKey))}</p></section>`;
+    }
+    waiting = true;
+    if (!inflight.has(`story:${v}:${id}`)) {
+      getStory(id, v).catch(e => previewErrors.set(errKey, e.message));
+    }
+    return `<section class="col"><h2><span>${label}</span></h2><p class="waiting">The archivist is writing. This page refreshes itself.</p></section>`;
+  };
+
+  const left = await column("v1", "Current");
+  const right = briefFor(id)
+    ? await column("v2", "New, from the brief")
+    : `<section class="col"><h2><span>New</span></h2><p class="waiting">No brief yet for this satellite.</p></section>`;
+  const brief = briefFor(id);
+
+  res.type("html").send(previewPage(`${BY_ID.get(id).name}: preview`, `<header>
+<div class="meta"><a href="/preview?key=${k}">All previews</a> · live version: ${STORY_VERSION}</div>
+<h1>${esc(BY_ID.get(id).name)}</h1></header>
+<main><div class="cols">${left}${right}</div></main>
+<footer>${brief ? `<p><a class="btn" href="${self}&fresh=1">Write the new version again</a></p>
+<details><summary class="label">The brief and fact sheet</summary><pre>${esc(brief)}</pre></details>` : ""}</footer>`,
+    waiting ? 6 : 0));
 });
 
 // ─── narration ────────────────────────────────────────────────────────────
@@ -396,7 +536,7 @@ app.get("/api/narrate/:id/:hash.mp3", async (req, res) => {
   const { id, hash } = req.params;
   if (!BY_ID.has(id)) return res.status(404).end();
   try {
-    const story = await readStory(id);
+    const story = await readStory(id, liveVersion(id));
     if (!story) return res.status(404).json({ error: "No entry yet." });
     if (story.hash !== hash) return res.status(410).json({ error: "This entry has been rewritten." });
     const file = await getAudio(id, story);
