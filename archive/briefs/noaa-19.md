@@ -4,19 +4,19 @@ Angle: A machine that spent sixteen years in orbit making up for about five seco
 
 Form: The incident report. Open in the flat, procedural register of an accident investigation (the time stamp, the angle of tilt, the count of bolts) and let the report form slowly give way to the archivist's own voice as the story widens. Return briefly to that procedural register at the very end.
 
-Weights: history 45, technology 20, culture 25, reflection 10.
+Weights: history 40, technology 20, culture 30, reflection 10.
 
 Entry: 15:28 UTC, 6 September 2003, a clean room in Sunnyvale, California. The cart is turning the satellite on its side.
 
-Technology to explain: How the AVHRR camera builds a picture one line at a time as the satellite moves beneath it, like a mower cutting stripes across a lawn, and why that made the pictures so easy to receive: the signal is a slow, simple analogue sound.
+Technology to explain: How the AVHRR builds a picture during a single pass: a scanning mirror sweeps from side to side across the ground below while the satellite's own forward motion moves each new sweep a little further along, so the image grows line by line, like a mower cutting stripes across a lawn. Then why the broadcast was so easy to receive: two lines every second, sent as an audible tone whose loudness carries the brightness, so the signal is literally a sound that a laptop's sound card can turn back into a picture.
 
-Culture: For years, anyone with a cheap USB radio dongle and a home-made antenna could pull NOAA-19's weather pictures out of the air on 137 MHz and watch the image of their own country assemble line by line on a laptop. That quiet hobby ended with the satellite in 2025.
+Culture: Two strands. First, for years anyone with an inexpensive USB radio dongle and a home-made antenna could pull NOAA-19's weather pictures out of the air on 137 MHz and watch the image of their own country assemble on a laptop. That quiet hobby ended with these satellites in 2025. Second, the search-and-rescue relay it carried: the programme's distress-beacon relay is credited with helping to save more than 24,400 lives since 1982. A machine dropped on the floor ended up, among other things, listening for people in trouble.
 
 Humour: The bolts. Someone borrowed them and told no one; the next team trusted the paperwork instead of looking. Note it, do not labour it.
 
-Reflection (light): Most of the satellite's working life was spent after the accident, not before. Keep it to a sentence or an implication.
+Reflection (light): Most of the satellite's story happened after the accident, not before. Keep it to a sentence or an implication.
 
-Ending: Return to the procedural register: the battery failure, the decommissioning a few days before its planned retirement, the satellite "left in orbit and put into a safe electrical state". Let the reader hear the echo of the unsafe cart without pointing at it.
+Ending: Return to the procedural register of the opening: the battery failure, the decommissioning shortly before its planned retirement, the satellite left in orbit in a safe electrical state. Let the reader hear the echo of the cart without pointing at it.
 
 Length: about 500 words.
 
@@ -29,9 +29,13 @@ Length: about 500 words.
 - The last satellite in NOAA's long series of polar-orbiting weather satellites (POES).
 - Sun-synchronous orbit, about 850 to 870 km up, inclination 98.7 degrees, one orbit every 102 minutes.
 - Eight instruments, including AVHRR/3 (the imaging radiometer that makes the pictures), HIRS/4, AMSU-A and MHS (atmospheric sounders), SBUV/2 (ozone), the Argos data collection system, and SARSAT, which relays signals from emergency distress beacons to rescue services.
-- It broadcast its pictures continuously in APT (Automatic Picture Transmission) format in the 137 MHz band. For years it was a mainstay for hobbyists receiving weather images with inexpensive RTL-SDR radio dongles and simple home-made antennas.
+- The AVHRR builds images with a scanning mirror that sweeps across the ground track while the satellite moves forward, adding one line per sweep.
+- It broadcast its pictures continuously in APT (Automatic Picture Transmission) in the 137 MHz band. APT sends two image lines per second. Brightness is carried as the amplitude (loudness) of a 2,400 Hz audio tone, so the received signal is an audible sound that ordinary decoding software turns back into an image through a computer's sound card. APT pictures have a resolution of about 4 km per pixel.
+- For years it was a mainstay for hobbyists receiving weather images with inexpensive RTL-SDR radio dongles and simple home-made antennas.
+- NOAA's polar-orbiting satellites were each designed to work for five years. The POES programme ran for 47 years, from 1978 to 2025.
+- The programme's search-and-rescue relay (SARSAT) has contributed to saving more than 24,400 lives worldwide since 1982 (NOAA figure).
 - NOAA announced in 2025 that NOAA-15 and NOAA-19 would be decommissioned, as they were far beyond their design life with degrading subsystems.
-- On 9 August 2025 NOAA-19 suffered a battery failure. It was decommissioned on 13 August 2025 at 16:55 UTC, a few days before its planned shutdown. It was left in orbit and put into a safe electrical state, with its transmitters shut down. It is still in orbit.
+- On 9 August 2025 NOAA-19 suffered a battery failure. It was decommissioned on 13 August 2025 at 16:55 UTC, shortly before its planned shutdown (the exact planned date is not on this sheet; do not give one). It was left in orbit and put into a safe electrical state, with its transmitters shut down. It is still in orbit. NOAA-15 followed on 19 August 2025.
 
 ## Sources
 
@@ -39,3 +43,5 @@ Length: about 500 words.
 - https://usradioguy.com/interesting-stuff-you-should-know/the-day-noaa-19-toppled/
 - https://www.rtl-sdr.com/noaa-15-and-19-to-be-decommissioned-within-the-next-two-weeks/
 - https://www.ospo.noaa.gov/data/messages/2025/08/MSG_20250813_1715.html
+- https://www.nesdis.noaa.gov/news/legacy-orbit-noaa-decommissions-the-poes-satellite-constellation
+- https://en.wikipedia.org/wiki/Automatic_picture_transmission

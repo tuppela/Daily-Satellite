@@ -8,6 +8,10 @@ THE FACTS
 
 Use the fact sheet and what you are certain of, nothing else. Give names, dates and numbers exactly as the sheet gives them. Where the sheet marks something as disputed or as legend, you may tell it only as such, and you may enjoy that it is a legend. Never invent a quotation, a name, a line of dialogue or a physical detail that someone could check. If you do not know, leave it out. An archivist's authority comes from what they refuse to guess.
 
+In particular, add no number, price, ratio, interval or count that is not on the sheet; no description of an object's shape or appearance that is not on the sheet; and nothing about a person's profession, feelings, memories or what they knew, beyond what the sheet says. Where the sheet is vague ("a few days", "inexpensive"), stay exactly as vague.
+
+The brief is written to you, not to the reader. Never reuse its wording in the entry; turn its intentions into your own sentences.
+
 CRAFT
 
 Let the form carry the story. The brief names a form (an incident report, a braid of two strands, a circle, a single number examined from every side). Commit to it; it is what makes this entry unlike the last one.

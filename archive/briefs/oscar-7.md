@@ -14,7 +14,7 @@ Culture: Amateur radio. Licensed hobbyists still make contacts through it daily,
 
 Humour: It is older than most of the people who talk through it. The revival is, by the usual behaviour of such batteries, not supposed to be possible.
 
-Reflection (light, mostly implied): Something about listening, and about who keeps listening to something that has gone quiet.
+Reflection (light, implied only): listening, and who keeps listening to something that has gone quiet. Do not state it as a moral.
 
 Ending: An image. Each time the satellite comes out of the Earth's shadow, it wakes without knowing which mode it will be in, and begins to repeat whatever it hears.
 
@@ -33,7 +33,8 @@ Length: about 550 words.
 - Since 2002 it has run on solar power only. It eclipses on every orbit during northern summer and autumn; the rest of the year it is in continuous sunlight and alternates between modes A and B. It starts in an unpredictable mode each time it enters sunlight.
 - It is widely described as the oldest operational satellite of any kind: government, scientific, military or commercial. Contacts through it are reported daily.
 - Legend, not fact: there are reports that Poland's Solidarity underground used it clandestinely during martial law (1981 to 1983). These are unconfirmed, and The Register (2024) suggests confusion with OSCAR-8 is more likely. Tell it only as a legend.
-- Pat Gowen died in 2017.
+- Pat Gowen died in 2017. The sheet does not say whether he had heard OSCAR-7 before it fell silent; do not say that he had.
+- Martial law in Poland began in December 1981, after OSCAR-7 had already fallen silent (mid-1981). That timing is one reason the legend is doubted.
 
 ## Sources
 

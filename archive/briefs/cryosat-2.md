@@ -14,7 +14,7 @@ Culture (light): "The tip of the iceberg" is a figure of speech that, here, is s
 
 Humour: A delicate pre-launch repair: debris found in an antenna waveguide was removed by a surgeon using an endoscope. The rocket that finally launched it, a Dnepr, was a converted intercontinental ballistic missile.
 
-Reflection: Measured with care, not with alarm. A mission planned for three years that has been measuring for more than sixteen. The man who proposed it did not live to see his central paper published.
+Reflection: The tone is calm and exact, never alarmed; let the numbers carry the weight. A mission planned for three years that has been measuring for more than sixteen. The man who proposed it did not live to see his central paper published.
 
 Ending: Return to the opening: the first CryoSat still lies somewhere in the Arctic Ocean north of Greenland, under the ice it was built to measure, while the second goes on measuring it.
 
@@ -25,12 +25,12 @@ Length: about 650 words.
 - CryoSat is a European Space Agency (ESA) mission to measure changes in the thickness of polar ice.
 - The first CryoSat was launched on 8 October 2005 from Plesetsk on a Rockot rocket. The second stage engine did not shut down at the end of its planned burn and burned to depletion; the spacecraft was lost, re-entering over the Arctic Ocean north of Greenland.
 - CryoSat-2 was built as its replacement and launched on 8 April 2010, 13:57 UTC, from Baikonur on a Dnepr rocket. The Dnepr was a converted Soviet R-36M intercontinental ballistic missile (NATO name SS-18).
-- Before launch, ferrite debris was found in the waveguide of the X-band antenna; it was removed by a surgeon, Tatiana Zykova, using an endoscope.
+- Before launch, ferrite debris was found in the waveguide of the X-band antenna; it was removed by a surgeon, Tatiana Zykova, using an endoscope. (Her medical specialty is not on this sheet.)
 - Its main instrument is SIRAL, a SAR interferometric radar altimeter operating in the Ku band at 13.6 GHz. There are two SIRAL units on board, one as a backup. In interferometric mode it uses two antennas mounted 1 metre apart to measure the angle of returning echoes, which lets it measure sloping ice-sheet margins.
 - It measures sea ice freeboard, the height of the ice above the water; ice thickness is derived from freeboard by assuming the ice floats in equilibrium.
 - Orbit: inclination 92 degrees, about 718 to 732 km up, one orbit every 99 minutes. It reaches 88 degrees north, much closer to the pole than earlier missions (81.5 degrees north).
 - Planned mission length: three years. It has now been operating for more than sixteen years.
-- Seymour Laxon of University College London was director of the Centre for Polar Observation and Modelling (CPOM), part of the UCL team that proposed CryoSat to ESA in 1999, and a key figure in its development and operations. He died in early January 2013.
+- Seymour Laxon was a professor in University College London's Earth Sciences department, director of the Centre for Polar Observation and Modelling (CPOM), part of the UCL team that proposed CryoSat to ESA in 1999, and a key figure in its development and operations. He died in early January 2013.
 - In February 2013 his team published the first CryoSat-2 estimates of Arctic sea ice volume. Compared with 2003 to 2008, autumn volume in 2010 to 2012 had fallen by 36 per cent (from an average of 11,900 to 7,600 cubic kilometres, a loss of 4,300), and winter volume by 9 per cent (from 16,300 to 14,800 cubic kilometres).
 - CryoSat data have also been used to map about 25,000 previously uncharted seamounts (2014) and to detect 85 previously unknown lakes beneath the Antarctic ice (2025).
 
