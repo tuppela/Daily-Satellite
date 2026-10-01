@@ -327,6 +327,18 @@ test("preview: private, side by side, regenerates on request", async () => {
   } finally { await s.stop(); }
 });
 
+test("preview warm-up writes both versions of every briefed story at start", async () => {
+  const s = await startServer(tmp(), { PREVIEW_KEY: "sesame", PREVIEW_WARM: "1" });
+  try {
+    for (let i = 0; i < 60 && !/Preview warm-up done/.test(s.log()); i++) await new Promise(r => setTimeout(r, 100));
+    assert.match(s.log(), /Preview warm-up done/);
+    for (const id of ["noaa-19", "oscar-7", "cryosat-2"]) {
+      assert.match(s.log(), new RegExp(`STORY v1 ${id} \\| `), id + " v1");
+      assert.match(s.log(), new RegExp(`STORY v2 ${id} \\| `), id + " v2");
+    }
+  } finally { await s.stop(); }
+});
+
 test("missing keys fail politely, not with a crash", async () => {
   const s = await startServer(tmp(), { ANTHROPIC_API_KEY: undefined, ELEVENLABS_API_KEY: undefined });
   try {

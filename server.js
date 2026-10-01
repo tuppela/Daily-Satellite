@@ -587,6 +587,20 @@ if (require.main === module) {
     warm();
     setInterval(warm, TLE_TTL_MS).unref();
 
+    // PREVIEW_WARM=1: write both versions of every briefed story at start-up,
+    // one at a time, so the preview pages are ready before anyone opens them.
+    if (PREVIEW_KEY && process.env.PREVIEW_WARM === "1") {
+      (async () => {
+        for (const id of briefIds()) {
+          for (const v of ["v1", "v2"]) {
+            try { await getStory(id, v); }
+            catch (e) { previewErrors.set(`${v}:${id}`, e.message); console.warn(`Preview ${v} ${id}: ${e.message}`); }
+          }
+        }
+        console.log("Preview warm-up done");
+      })();
+    }
+
     // Keep the free Render instance awake by visiting ourselves. This hits a
     // local health check, never CelesTrak.
     const self = process.env.RENDER_EXTERNAL_URL;
