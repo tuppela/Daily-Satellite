@@ -397,8 +397,10 @@ async function factCheck(id, draft) {
     return { text: draft, changes: ["(fact-check reply unreadable; draft kept unchanged)"] };
   }
   const changes = m[1].split("\n").map(l => l.replace(/^\s*-\s*/, "").trim()).filter(l => l && l.toLowerCase() !== "none");
-  const text = cleanStory(m[2]);
-  return text ? { text, changes } : { text: draft, changes: ["(fact-check returned an empty entry; draft kept)"] };
+  // House style: no em dashes, whatever the writer or checker did.
+  const noDashes = t => t.replace(/\s*\u2014\s*/g, ", ");
+  const text = noDashes(cleanStory(m[2]));
+  return text ? { text, changes } : { text: noDashes(draft), changes: ["(fact-check returned an empty entry; draft kept)"] };
 }
 
 async function forgetStory(id, v) {

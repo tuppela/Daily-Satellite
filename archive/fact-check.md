@@ -7,6 +7,10 @@ For each specific claim that the fact sheet does not support:
 - If a vaguer version is true, make it vaguer (for example "every hundred minutes" becomes "every orbit").
 - If it contradicts the sheet, correct it to match the sheet.
 
+Check that supported facts are stated correctly, not merely present: rates, units, frequencies and conditions (how often, when, for how long) must match the sheet. "Two lines every second" is not "every two lines"; "eclipses on every orbit in summer and autumn" is not "on every orbit".
+
+Replace every em dash with a comma, colon or full stop.
+
 Leave alone: general knowledge that is not specific to this satellite (that ice floats, that the Earth turns), figures of speech and images that make no factual claim, the writer's reflections and opinions, and anything the sheet does support. Do not improve the style. Do not add anything. Keep British spelling and the writer's paragraphs.
 
 Also remove any sentence that repeats the wording of the brief rather than telling the story.

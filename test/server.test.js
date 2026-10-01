@@ -82,7 +82,7 @@ const stub = http.createServer((req, res) => {
         const draft = messages[0].content.split("DRAFT ENTRY:")[1].trim();
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(JSON.stringify({ content: [{ type: "text", text:
-          `CHANGES:\n- removed "every hundred minutes"\n\nENTRY:\n${draft}\n\nChecked.` }] }));
+          `CHANGES:\n- removed "every hundred minutes"\n\nENTRY:\n${draft}\n\nChecked \u2014 twice.` }] }));
       }
       assert.match(system, /^You are the keeper of a very old archive/);
       setTimeout(() => {
@@ -336,7 +336,7 @@ test("preview: private, side by side, regenerates on request", async () => {
     assert.equal(calls.anthropic - before, 2, "only the new version is rewritten: one draft, one fact-check");
     const checked = await (await fetch(s.base + "/preview/noaa-19?key=sesame")).text();
     assert.match(checked, /Fact-checker: 1 change/);
-    assert.match(checked, /Checked\./, "the checked entry is what is shown");
+    assert.match(checked, /Checked, twice\./, "the checked entry is what is shown, em dashes replaced");
     assert.match(s.log(), /STORY v2 noaa-19 \| /, "drafts are readable in the log");
   } finally { await s.stop(); }
 });
