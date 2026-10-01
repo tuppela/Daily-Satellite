@@ -98,11 +98,14 @@ const Orbit = (() => {
     };
   }
 
-  // Great-circle angle between two lon/lat pairs, in degrees.
+  // Great-circle angle between two lon/lat pairs, in degrees. Haversine form:
+  // the acos form loses precision near zero (it reports ~1e-6 deg for two
+  // identical points), which matters when checking that the camera is on target.
   function arcDeg(aLon, aLat, bLon, bLat) {
-    const p1 = aLat * DEG, p2 = bLat * DEG, dl = (bLon - aLon) * DEG;
-    const c = Math.sin(p1) * Math.sin(p2) + Math.cos(p1) * Math.cos(p2) * Math.cos(dl);
-    return Math.acos(Math.max(-1, Math.min(1, c))) / DEG;
+    const p1 = aLat * DEG, p2 = bLat * DEG;
+    const sdp = Math.sin((p2 - p1) / 2), sdl = Math.sin(((bLon - aLon) * DEG) / 2);
+    const h = sdp * sdp + Math.cos(p1) * Math.cos(p2) * sdl * sdl;
+    return (2 * Math.asin(Math.min(1, Math.sqrt(h)))) / DEG;
   }
 
   // Shortest-path interpolation between two lon/lat pairs on the sphere.

@@ -306,7 +306,7 @@ test("dragging away while tracking: holds, then glides back rather than snapping
   assert.ok(gapMid < gap0 && gapMid > 0.01, "part way back, not snapped");
   env.run(500);
   assert.equal(env.w.__ds.scene.cameraMode, "locked");
-  assert.ok(Orbit.arcDeg(env.map.c.lng, env.map.c.lat, h().lon, h().lat) < 1e-9, "back on the satellite");
+  assert.ok(Math.abs(env.map.c.lng - h().lon) < 1e-9 && Math.abs(env.map.c.lat - h().lat) < 1e-9, "back on the satellite");
   env.w.close();
 });
 

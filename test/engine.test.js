@@ -106,6 +106,13 @@ test("incremental trail matches a full rebuild and stays in its window", () => {
   assert.ok(inc.points.length >= 75 && inc.points.length <= 76);
 });
 
+test("arc distance is exact for identical points and correct for known ones", () => {
+  assert.equal(Orbit.arcDeg(24.9, 60.4, 24.9, 60.4), 0);
+  assert.ok(Math.abs(Orbit.arcDeg(0, 0, 90, 0) - 90) < 1e-12);
+  assert.ok(Math.abs(Orbit.arcDeg(10, -89, 190, -89) - 2) < 1e-9, "across the pole");
+  assert.ok(Math.abs(Orbit.arcDeg(0, 0, 1e-7, 0) - 1e-7) < 1e-15, "tiny angles resolved");
+});
+
 test("slerp takes the short way across the antimeridian", () => {
   const m = Orbit.slerpLngLat(179, 10, -179, 10, 0.5);
   assert.ok(Math.abs(Math.abs(m.lon) - 180) < 0.01, "lon " + m.lon);
