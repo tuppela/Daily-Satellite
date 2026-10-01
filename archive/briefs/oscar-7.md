@@ -26,6 +26,7 @@ Length: about 550 words.
 - Built largely by volunteers working in the aerospace industry, on evenings and weekends. It cost about US$60,000 in 1974 money; a comparable commercial satellite would have cost about US$2 million.
 - Launched 15 November 1974, 17:11 UTC, from Vandenberg on a Delta rocket, as a secondary payload alongside the NOAA-4 weather satellite.
 - Mass about 28.6 to 28.8 kg. An octahedral body, roughly 36 by 42 cm.
+- Orbit: about 1,450 km up, inclination about 101.7 degrees, one orbit roughly every 115 minutes.
 - Two linear transponders: Mode A (uplink on 2 metres, downlink on 10 metres) and Mode B (uplink on 70 centimetres, downlink on 2 metres). Beacons on 10 m, 2 m and 70 cm; a fourth beacon, on 13 cm, was never activated.
 - Planned life of 5 to 10 years. It worked for about six and a half years.
 - In mid-1981 (reported as June 1981) a battery cell short-circuited and the power supply collapsed. The satellite went silent.

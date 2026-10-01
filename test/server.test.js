@@ -77,6 +77,13 @@ const stub = http.createServer((req, res) => {
       calls.anthropic++;
       const { messages, system, max_tokens } = JSON.parse(body);
       sentToAnthropic.push({ system, content: messages[0].content, max_tokens });
+      if (/^You are the fact-checker/.test(system)) {
+        assert.match(messages[0].content, /BRIEF AND FACT SHEET:[\s\S]*DRAFT ENTRY:/);
+        const draft = messages[0].content.split("DRAFT ENTRY:")[1].trim();
+        res.writeHead(200, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ content: [{ type: "text", text:
+          `CHANGES:\n- removed "every hundred minutes"\n\nENTRY:\n${draft}\n\nChecked.` }] }));
+      }
       assert.match(system, /^You are the keeper of a very old archive/);
       setTimeout(() => {
         res.writeHead(200, { "content-type": "application/json" });
@@ -280,7 +287,11 @@ test("story versions: live stays on v1 by default; v2 uses the voice file and th
     sentToAnthropic.length = 0;
     await post(s2.base, "/api/story", { id: "noaa-19" });
     await post(s2.base, "/api/story", { id: "iss" });
-    const [noaa, iss] = sentToAnthropic;
+    const writes = sentToAnthropic.filter(r => !/^You are the fact-checker/.test(r.system));
+    const checks = sentToAnthropic.filter(r => /^You are the fact-checker/.test(r.system));
+    const [noaa, iss] = writes;
+    assert.equal(checks.length, 1, "v2 is fact-checked, v1 is not");
+    assert.match(checks[0].content, /# Brief: NOAA-19/, "checker sees the sheet");
     assert.match(noaa.system, /HOW EACH ENTRY IS MADE/, "voice file used");
     assert.match(noaa.content, /# Brief: NOAA-19/, "brief included");
     assert.match(noaa.content, /15:28 UTC/, "fact sheet included");
@@ -322,7 +333,10 @@ test("preview: private, side by side, regenerates on request", async () => {
     assert.equal(again.status, 303, "regenerate, then drop the flag");
     await fetch(s.base + "/preview/noaa-19?key=sesame");
     await new Promise(r => setTimeout(r, 400));
-    assert.equal(calls.anthropic - before, 1, "only the new version is rewritten");
+    assert.equal(calls.anthropic - before, 2, "only the new version is rewritten: one draft, one fact-check");
+    const checked = await (await fetch(s.base + "/preview/noaa-19?key=sesame")).text();
+    assert.match(checked, /Fact-checker: 1 change/);
+    assert.match(checked, /Checked\./, "the checked entry is what is shown");
     assert.match(s.log(), /STORY v2 noaa-19 \| /, "drafts are readable in the log");
   } finally { await s.stop(); }
 });

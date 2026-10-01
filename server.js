@@ -334,7 +334,7 @@ async function readStory(id, v = liveVersion(id)) {
   try {
     const saved = JSON.parse(await fsp.readFile(storyFile(id, v), "utf8"));
     if (saved && saved.text) {
-      const s = { text: saved.text, hash: hashOf(saved.text), createdAt: saved.createdAt };
+      const s = { text: saved.text, hash: hashOf(saved.text), createdAt: saved.createdAt, changes: saved.changes || [] };
       stories.set(key, s);
       return s;
     }
@@ -350,37 +350,55 @@ async function getStory(id, v = liveVersion(id)) {
     const again = await readStory(id, v);
     if (again) return again;
 
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) throw httpError(503, "The archive is closed (no Anthropic key configured).");
-
     const r = requestFor(id, v);
-    const res = await fetchWithTimeout(ANTHROPIC_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: STORY_MODEL,
-        max_tokens: r.max_tokens,
-        system: r.system,
-        messages: [{ role: "user", content: r.content }],
-      }),
-    }, 150000);
+    const draft = cleanStory(await askClaude(r.system, r.content, r.max_tokens));
+    if (!draft) throw httpError(502, "The archivist returned an empty page.");
 
-    if (!res.ok) {
-      console.error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      throw httpError(502, "The archivist could not be reached.");
-    }
-    const data = await res.json();
-    const text = cleanStory((data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n"));
-    if (!text) throw httpError(502, "The archivist returned an empty page.");
+    // v2 gets a second pair of eyes: every specific claim checked against the sheet.
+    let text = draft, changes = [];
+    if (v !== "v1") ({ text, changes } = await factCheck(id, draft));
 
     const createdAt = new Date().toISOString();
-    await writeAtomic(storyFile(id, v), JSON.stringify({ id, version: v, text, model: STORY_MODEL, createdAt }, null, 2));
+    await writeAtomic(storyFile(id, v), JSON.stringify({ id, version: v, text, draft, changes, model: STORY_MODEL, createdAt }, null, 2));
     // Kept in the log too, so a draft can be read without the page.
+    for (const c of changes) console.log(`FACTCHECK ${v} ${id} | ${c}`);
     for (const para of text.split("\n\n")) console.log(`STORY ${v} ${id} | ${para}`);
-    const s = { text, hash: hashOf(text), createdAt };
+    const s = { text, hash: hashOf(text), createdAt, changes };
     stories.set(`${v}:${id}`, s);
     return s;
   });
+}
+
+async function askClaude(system, content, maxTokens) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw httpError(503, "The archive is closed (no Anthropic key configured).");
+  const res = await fetchWithTimeout(ANTHROPIC_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: STORY_MODEL, max_tokens: maxTokens, system, messages: [{ role: "user", content }] }),
+  }, 150000);
+  if (!res.ok) {
+    console.error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    throw httpError(502, "The archivist could not be reached.");
+  }
+  const data = await res.json();
+  return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+}
+
+// Returns the checked entry and the list of changes. If the checker's reply
+// cannot be parsed, the draft stands and the problem is logged; a missing
+// check must never lose a story.
+async function factCheck(id, draft) {
+  const system = fs.readFileSync(path.join(ARCHIVE_DIR, "fact-check.md"), "utf8");
+  const reply = await askClaude(system, `BRIEF AND FACT SHEET:\n\n${briefFor(id)}\n\nDRAFT ENTRY:\n\n${draft}`, 3000);
+  const m = reply.match(/^CHANGES:\s*\n([\s\S]*?)\n\s*ENTRY:\s*\n([\s\S]+)$/m);
+  if (!m) {
+    console.warn(`Fact-check for ${id} came back in an unexpected format; keeping the draft.`);
+    return { text: draft, changes: ["(fact-check reply unreadable; draft kept unchanged)"] };
+  }
+  const changes = m[1].split("\n").map(l => l.replace(/^\s*-\s*/, "").trim()).filter(l => l && l.toLowerCase() !== "none");
+  const text = cleanStory(m[2]);
+  return text ? { text, changes } : { text: draft, changes: ["(fact-check returned an empty entry; draft kept)"] };
 }
 
 async function forgetStory(id, v) {
@@ -434,6 +452,8 @@ function previewPage(title, body, refresh) {
   details { border-top: 1px solid var(--rule); padding-top: 16px; }
   pre { white-space: pre-wrap; font-family: 'Source Code Pro', monospace; font-size: 12px; line-height: 1.6; }
   ul { line-height: 2; }
+  .checks ul { font-family: 'Source Code Pro', monospace; font-size: 12px; line-height: 1.6; padding-left: 18px; }
+  .checks li { margin-bottom: 6px; }
 </style></head><body>${body}</body></html>`;
 }
 
@@ -468,7 +488,8 @@ app.get("/preview/:id", async (req, res) => {
   const column = async (v, label) => {
     const s = await readStory(id, v);
     if (s) {
-      return `<section class="col"><h2><span>${label}</span><span>${words(s.text)} words</span></h2>${storyHtml(s.text)}</section>`;
+      const checked = v === "v1" ? "" : `<details class="checks"><summary class="label">Fact-checker: ${s.changes.length ? s.changes.length + " change" + (s.changes.length > 1 ? "s" : "") : "no changes"}</summary><ul>${s.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ul></details>`;
+      return `<section class="col"><h2><span>${label}</span><span>${words(s.text)} words</span></h2>${storyHtml(s.text)}${checked}</section>`;
     }
     const errKey = `${v}:${id}`;
     if (previewErrors.has(errKey)) {
