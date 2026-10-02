@@ -18,6 +18,8 @@ Reflection: The tone is calm and exact, never alarmed; let the numbers carry the
 
 Ending: Return to the opening: the first CryoSat still lies somewhere in the Arctic Ocean north of Greenland, under the ice it was built to measure, while the second goes on measuring it.
 
+Dark comedy dose: 3
+
 Length: about 650 words.
 
 ## Fact sheet

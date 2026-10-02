@@ -18,6 +18,8 @@ Reflection (light, implied only): listening, and who keeps listening to somethin
 
 Ending: An image. Each time the satellite comes out of the Earth's shadow, it wakes without knowing which mode it will be in, and begins to repeat whatever it hears.
 
+Dark comedy dose: 3
+
 Length: about 550 words.
 
 ## Fact sheet

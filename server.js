@@ -284,17 +284,19 @@ const SYSTEM_PROMPT = `You are the keeper of a very old archive of objects in Ea
  * v1: the original prompt above, with one line of description per satellite.
  * v2: archive/voice.md as the system prompt, plus an editorial brief and
  *     fact sheet per satellite from archive/briefs/<id>.md.
- * The live site uses v1 unless STORY_VERSION=v2, and even then only for
- * satellites that have a brief. /preview shows both side by side. */
+ * v3: the same briefs with archive/voice-v3.md, a spoken, darker comic voice.
+ * The live site uses v1 unless STORY_VERSION is v2 or v3, and even then only
+ * for satellites that have a brief. /preview shows them side by side. */
 const ARCHIVE_DIR = path.join(__dirname, "archive");
-const STORY_VERSION = process.env.STORY_VERSION === "v2" ? "v2" : "v1";
+const VOICE_FILES = { v2: "voice.md", v3: "voice-v3.md" };
+const STORY_VERSION = VOICE_FILES[process.env.STORY_VERSION] ? process.env.STORY_VERSION : "v1";
 
 function briefFor(id) {
   try { return fs.readFileSync(path.join(ARCHIVE_DIR, "briefs", `${id}.md`), "utf8"); }
   catch (e) { return null; }
 }
 const briefIds = () => CATALOGUE.map(s => s.id).filter(id => briefFor(id));
-const liveVersion = id => (STORY_VERSION === "v2" && briefFor(id) ? "v2" : "v1");
+const liveVersion = id => (STORY_VERSION !== "v1" && briefFor(id) ? STORY_VERSION : "v1");
 const storyFile = (id, v) => path.join(STORY_DIR, v === "v1" ? `${id}.json` : `${id}.${v}.json`);
 
 const stories = new Map();                     // "v:id" -> { text, hash, createdAt }
@@ -322,8 +324,8 @@ function requestFor(id, v) {
   const brief = briefFor(id);
   if (!brief) throw httpError(404, "There is no brief for this satellite yet.");
   return {
-    system: fs.readFileSync(path.join(ARCHIVE_DIR, "voice.md"), "utf8"),
-    max_tokens: 2200,
+    system: fs.readFileSync(path.join(ARCHIVE_DIR, VOICE_FILES[v]), "utf8"),
+    max_tokens: 2600,
     content: `Write the entry for ${sat.name}, following this brief and fact sheet.\n\n${brief}`,
   };
 }
@@ -439,12 +441,12 @@ function previewPage(title, body, refresh) {
   :root { --bg: #eee9dd; --ink: #1a1610; --faint: rgba(26,22,16,0.45); --rule: rgba(26,22,16,0.14); }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Libre Baskerville', Georgia, serif; }
-  header, main, footer { max-width: 1240px; margin: 0 auto; padding: 24px 16px; }
+  header, main, footer { max-width: 1440px; margin: 0 auto; padding: 24px 16px; }
   .meta, a.btn, .label { font-family: 'Source Code Pro', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
   .meta { color: var(--faint); }
   h1 { font-size: 34px; margin: 8px 0 0; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
-  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+  @media (max-width: 1100px) { .cols { grid-template-columns: 1fr; } }
   .col h2 { font-family: 'Source Code Pro', monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; border-bottom: 1px solid var(--rule); padding-bottom: 10px; display: flex; justify-content: space-between; }
   .col p { font-size: 15px; line-height: 1.82; margin: 0 0 1.1em; }
   .waiting { font-style: italic; color: var(--faint); }
@@ -480,9 +482,10 @@ app.get("/preview/:id", async (req, res) => {
   const k = encodeURIComponent(req.query.key);
   const self = `/preview/${id}?key=${k}`;
 
-  if (req.query.fresh === "1") {
-    await forgetStory(id, "v2");
-    previewErrors.delete(`v2:${id}`);
+  const fresh = req.query.fresh === "1" ? "v2" : req.query.fresh;   // "1" is the old link for v2
+  if (VOICE_FILES[fresh]) {
+    await forgetStory(id, fresh);
+    previewErrors.delete(`${fresh}:${id}`);
     return res.redirect(303, self);            // so a reload does not regenerate again
   }
 
@@ -505,16 +508,19 @@ app.get("/preview/:id", async (req, res) => {
   };
 
   const left = await column("v1", "Current");
-  const right = briefFor(id)
-    ? await column("v2", "New, from the brief")
-    : `<section class="col"><h2><span>New</span></h2><p class="waiting">No brief yet for this satellite.</p></section>`;
   const brief = briefFor(id);
+  const middle = brief
+    ? await column("v2", "Dry, from the brief")
+    : `<section class="col"><h2><span>Dry</span></h2><p class="waiting">No brief yet for this satellite.</p></section>`;
+  const right = brief
+    ? await column("v3", "Dark, from the brief")
+    : `<section class="col"><h2><span>Dark</span></h2><p class="waiting">No brief yet for this satellite.</p></section>`;
 
   res.type("html").send(previewPage(`${BY_ID.get(id).name}: preview`, `<header>
 <div class="meta"><a href="/preview?key=${k}">All previews</a> · live version: ${STORY_VERSION}</div>
 <h1>${esc(BY_ID.get(id).name)}</h1></header>
-<main><div class="cols">${left}${right}</div></main>
-<footer>${brief ? `<p><a class="btn" href="${self}&fresh=1">Write the new version again</a></p>
+<main><div class="cols">${left}${middle}${right}</div></main>
+<footer>${brief ? `<p><a class="btn" href="${self}&fresh=v2">Write the dry version again</a><a class="btn" href="${self}&fresh=v3">Write the dark version again</a></p>
 <details><summary class="label">The brief and fact sheet</summary><pre>${esc(brief)}</pre></details>` : ""}</footer>`,
     waiting ? 6 : 0));
 });
@@ -610,12 +616,12 @@ if (require.main === module) {
     warm();
     setInterval(warm, TLE_TTL_MS).unref();
 
-    // PREVIEW_WARM=1: write both versions of every briefed story at start-up,
+    // PREVIEW_WARM=1: write every version of every briefed story at start-up,
     // one at a time, so the preview pages are ready before anyone opens them.
     if (PREVIEW_KEY && process.env.PREVIEW_WARM === "1") {
       (async () => {
         for (const id of briefIds()) {
-          for (const v of ["v1", "v2"]) {
+          for (const v of ["v1", "v2", "v3"]) {
             try { await getStory(id, v); }
             catch (e) { previewErrors.set(`${v}:${id}`, e.message); console.warn(`Preview ${v} ${id}: ${e.message}`); }
           }

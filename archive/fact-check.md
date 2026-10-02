@@ -9,6 +9,8 @@ For each specific claim that the fact sheet does not support:
 
 Check that supported facts are stated correctly, not merely present: rates, units, frequencies and conditions (how often, when, for how long) must match the sheet. "Two lines every second" is not "every two lines"; "eclipses on every orbit in summer and autumn" is not "on every orbit".
 
+Some entries are comic monologues. Do not remove or soften a joke, a tangent, a repeated line or an admission by the narrator about the narrator's own reactions because it is a joke: check only the factual premise of each. A line returned to on purpose is not an error. A joke that depends on an unsupported fact gets the fact fixed or the joke turned toward what the sheet does support. Never let a joke land on a real person who suffered or died; if one does, remove it.
+
 Replace every em dash with a comma, colon or full stop.
 
 Leave alone: general knowledge that is not specific to this satellite (that ice floats, that the Earth turns), figures of speech and images that make no factual claim, the writer's reflections and opinions, and anything the sheet does support. Do not improve the style. Do not add anything. Keep British spelling and the writer's paragraphs.

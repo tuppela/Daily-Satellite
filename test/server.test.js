@@ -299,7 +299,7 @@ test("story versions: live stays on v1 by default; v2 uses the voice file and th
   } finally { await s2.stop(); }
 });
 
-test("preview: private, side by side, regenerates on request", async () => {
+test("preview: private, three versions side by side, regenerates on request", async () => {
   const hidden = await startServer(tmp());
   try {
     assert.equal((await fetch(hidden.base + "/preview")).status, 404, "absent without a key configured");
@@ -318,13 +318,14 @@ test("preview: private, side by side, regenerates on request", async () => {
     assert.match(first, /http-equiv="refresh"/);
 
     let page = "";
-    for (let i = 0; i < 40 && !/New, from the brief<\/span><span>\d+ words/.test(page); i++) {
+    for (let i = 0; i < 40 && !/Dark, from the brief<\/span><span>\d+ words/.test(page); i++) {
       await new Promise(r => setTimeout(r, 100));
       page = await (await fetch(s.base + "/preview/noaa-19?key=sesame")).text();
     }
     assert.match(page, /Current<\/span><span>\d+ words/);
-    assert.match(page, /New, from the brief<\/span><span>\d+ words/);
-    assert.ok(!/http-equiv="refresh"/.test(page), "stops refreshing once both are in");
+    assert.match(page, /Dry, from the brief<\/span><span>\d+ words/);
+    assert.match(page, /Dark, from the brief<\/span><span>\d+ words/);
+    assert.ok(!/http-equiv="refresh"/.test(page), "stops refreshing once all are in");
     assert.match(page, /<em>quietly<\/em>/, "emphasis rendered");
     assert.match(page, /The brief and fact sheet/);
 
@@ -333,7 +334,14 @@ test("preview: private, side by side, regenerates on request", async () => {
     assert.equal(again.status, 303, "regenerate, then drop the flag");
     await fetch(s.base + "/preview/noaa-19?key=sesame");
     await new Promise(r => setTimeout(r, 400));
-    assert.equal(calls.anthropic - before, 2, "only the new version is rewritten: one draft, one fact-check");
+    assert.equal(calls.anthropic - before, 2, "only the dry version is rewritten: one draft, one fact-check");
+
+    const beforeDark = calls.anthropic;
+    const darkAgain = await fetch(s.base + "/preview/noaa-19?key=sesame&fresh=v3", { redirect: "manual" });
+    assert.equal(darkAgain.status, 303);
+    await fetch(s.base + "/preview/noaa-19?key=sesame");
+    await new Promise(r => setTimeout(r, 400));
+    assert.equal(calls.anthropic - beforeDark, 2, "only the dark version is rewritten");
     const checked = await (await fetch(s.base + "/preview/noaa-19?key=sesame")).text();
     assert.match(checked, /Fact-checker: 1 change/);
     assert.match(checked, /Checked, twice\./, "the checked entry is what is shown, em dashes replaced");
@@ -341,7 +349,20 @@ test("preview: private, side by side, regenerates on request", async () => {
   } finally { await s.stop(); }
 });
 
-test("preview warm-up writes both versions of every briefed story at start", async () => {
+test("story version v3 uses the dark voice file and the brief, and is fact-checked", async () => {
+  const s = await startServer(tmp(), { STORY_VERSION: "v3" });
+  try {
+    sentToAnthropic.length = 0;
+    await post(s.base, "/api/story", { id: "noaa-19" });
+    const [write, check] = sentToAnthropic;
+    assert.match(write.system, /HOW THE FUNNY WORKS/, "dark voice file used");
+    assert.ok(!/Mika Waltari/.test(write.system), "not the dry voice");
+    assert.match(write.content, /Dark comedy dose: 4/, "dose reaches the writer");
+    assert.match(check.system, /^You are the fact-checker/);
+  } finally { await s.stop(); }
+});
+
+test("preview warm-up writes every version of every briefed story at start", async () => {
   const s = await startServer(tmp(), { PREVIEW_KEY: "sesame", PREVIEW_WARM: "1" });
   try {
     for (let i = 0; i < 60 && !/Preview warm-up done/.test(s.log()); i++) await new Promise(r => setTimeout(r, 100));
@@ -349,6 +370,7 @@ test("preview warm-up writes both versions of every briefed story at start", asy
     for (const id of ["noaa-19", "oscar-7", "cryosat-2"]) {
       assert.match(s.log(), new RegExp(`STORY v1 ${id} \\| `), id + " v1");
       assert.match(s.log(), new RegExp(`STORY v2 ${id} \\| `), id + " v2");
+      assert.match(s.log(), new RegExp(`STORY v3 ${id} \\| `), id + " v3");
     }
   } finally { await s.stop(); }
 });

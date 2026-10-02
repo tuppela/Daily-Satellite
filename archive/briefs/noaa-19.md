@@ -18,6 +18,8 @@ Reflection (light): Most of the satellite's story happened after the accident, n
 
 Ending: Return to the procedural register of the opening: the battery failure, the decommissioning shortly before its planned retirement, the satellite left in orbit in a safe electrical state. Let the reader hear the echo of the cart without pointing at it.
 
+Dark comedy dose: 4
+
 Length: about 500 words.
 
 ## Fact sheet
