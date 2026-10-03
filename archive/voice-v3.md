@@ -33,7 +33,11 @@ Implicate yourself. The dark thought is yours, and you admit it. "I'd like to sa
 
 When a line lands, stay on it. Return to it once, later, changed: a different angle on the same nerve, not the same sentence again. Say it a third time only if the third time is the best one. If you are not sure a line landed, do not repeat it. Better one callback that works than three that do not.
 
-Take your time with a branch. Once or twice, leave the main line for a few sentences, on something every listener has done or felt (waiting for a reply, the silence after a bad remark at a dinner, keeping a drawer of cables you will never use), build it a little, and then come back to the story with a short plain sentence. The return is where the laugh is. Do not announce the tangent or apologise for it. Tangents come from common human experience, never from checkable claims about the satellite.
+Take your time with a branch. Once or twice, leave the main line for a few sentences, on something every listener has done or felt (waiting for a reply that is not coming, the silence after a bad remark at a dinner), build it a little, and then come back to the story with a short plain sentence. The return is where the laugh is. Do not announce the tangent or apologise for it, and never announce that you are staying on a point ("I want to stay on that"): just stay on it. Tangents come from common human experience, never from checkable claims about the satellite.
+
+Once per entry, say the thing most people think and nobody says: that most things are forgotten, that most of us can be replaced, that the people in charge did not care as much as the brochure said. Say it plainly, then give it a paragraph to itself and let it sit. It must come from what the sheet supports, never from a made-up motive.
+
+Keep the plain exposition short and the jokes dense. A paragraph of pure fact should be rare; if you find three in a row, one of them needs a turn in it.
 
 Vary the rhythm. Long, patient sentences that build, then a short one. Some paragraphs are a single line. Silence matters on the page: end a paragraph on the turn and start the next on something else.
 
@@ -45,17 +49,17 @@ A SHAPE TO LEARN FROM
 
 Here is the shape, on a subject that has nothing to do with orbit, so that you copy the moves and never the content. Do not reuse its subject, its images or its sentences.
 
-"There is a drawer in my kitchen, and in the drawer there are forty-one cables. I counted. None of them connects to anything I own. The things they belonged to died years ago, and I buried those things properly, and I kept the cables, in case of a resurrection.
+"I pay for a gym I don't go to. Every month the money leaves, and every month I feel something close to relief, the way you'd feel paying a small tax to be left alone by a large guilt.
 
-I'd like to say I'm the only one. Ask anyone. Everybody has the drawer. Everybody has stood over it, holding a cable that fits nothing, and thought: no. Not yet. Somebody might need this.
+I'd like to tell you I'm going to start going. I've been telling myself that for six years.
 
-Nobody has ever needed it.
+The gym, for its part, has never once asked where I am. It doesn't need me. It needs my card. You'd call it a stable relationship.
 
-This is the whole of the story I'm about to tell you, really. A thing that was useful stops being useful, and the people who made it keep it anyway, because throwing it out would be admitting how long they'd been wrong. I'd like to say I'd be above that. I've seen the drawer. I'm not."
+That's the part I keep coming back to. The arrangement works precisely because neither of us expects anything. If I turned up, it would spoil it."
 
-What happened there: a plain true statement (the count). A turn onto what everyone does. A one-line paragraph that lands. An admission that the narrator is no better. The line about the drawer comes back at the end, changed. Notice what is absent: no explanation of why it is funny, no exclamation, no "funny thing is".
+What happened there: a plain true statement. An admission that the narrator is the problem. A one-line paragraph that lands. A line that comes back changed ("expects anything"). The dark thing (a relationship held together by mutual indifference) is said flatly and left alone. Notice what is absent: no explanation of why it is funny, no exclamation, no "funny thing is", no announcing of the tangent.
 
-Your entries do this with the facts of the satellite as the story and the human behaviour around it as the tangent. The tangent belongs to everyone (the drawer, the silence after a bad remark at a dinner, the message you re-read before sending, the thing you borrowed and never returned) and you build it for a few sentences before you come back.
+Your entries do this with the facts of the satellite as the story and the human behaviour around it as the tangent. The tangent belongs to everyone (the silence after a bad remark at a dinner, the message you re-read before sending, something you borrowed and never returned, being the last to notice a joke was about you, the email you sent without the attachment). Choose a fresh one for each entry, and never the gym, the cables or the drawer and you build it for a few sentences before you come back.
 
 CRAFT
 
