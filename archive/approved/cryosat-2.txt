@@ -1,0 +1,25 @@
+October 2005. The first CryoSat, built to measure the polar ice, comes down in the Arctic Ocean north of Greenland. Into the ice it was built to measure. There is a word for that kind of ending, and the word is not "ironic." The word is "expensive."
+
+The Rockot's second stage did not shut down when it was supposed to. It burned to depletion, which is the polite way of saying it kept going until there was nothing left, the way you might describe someone who could not stop talking at a dinner party. The spacecraft never reached orbit. Four years of work, and the Arctic kept its secrets a little longer.
+
+So they built another one.
+
+CryoSat-2 launched on 8 April 2010 from Baikonur, on a Dnepr rocket. The Dnepr was a converted Soviet R-36M intercontinental ballistic missile, NATO reporting name SS-18. A weapon designed to end civilisations, now carrying an instrument to measure what we have done to the ice. I find that poetic. I suspect the engineers found it practical: the rockets were there, and they were cheap.
+
+Before launch, someone found debris in the waveguide of the X-band antenna. Ferrite particles, lodged inside a tube that had to be perfectly clear. The waveguide was too narrow for ordinary tools. So they brought in a surgeon, Tatiana Zykova, who used an endoscope to remove the debris. The same sort of camera you would use to look inside a stomach, threading its way into the throat of a satellite. I would like to tell you I found that charming. I did. But I also thought: this is how seriously we take the ice now. A surgeon, a medical endoscope, a cavity the size of a finger.
+
+The instrument is called SIRAL, a radar altimeter that sends pulses down and listens for echoes. What it measures is freeboard: the height of the ice that sits above the water. You know the phrase. The tip of the iceberg. Here, for once, the cliché is simply the method.
+
+Sea ice floats with most of its mass below the waterline. If you can measure precisely how much of it shows, you can calculate how much is hidden. The radar times echoes from the top of the ice and from the open water in gaps between floes. The difference is the freeboard. Ten centimetres up here means eighty centimetres down there. The maths is simple. Getting the ten centimetres right from more than 700 kilometres up is not.
+
+There are two antennas, mounted a metre apart. Think of them as two ears. When an echo comes back from sloping ice, it reaches one antenna slightly before the other. The satellite compares the timing and works out the angle. That tells it exactly where the echo came from, even on a surface that tilts. One ear alone would hear the echo; two ears tell you which direction to look.
+
+Seymour Laxon was a professor at University College London, director of the Centre for Polar Observation and Modelling, and one of the people who proposed CryoSat to ESA in 1999. He died in early January 2013.
+
+A month later, his team published the first CryoSat-2 estimates of Arctic sea ice volume. Compared with the average from 2003 to 2008, autumn volume in 2010 to 2012 had fallen by 36 per cent. From 11,900 cubic kilometres to 7,600. A loss of 4,300 cubic kilometres. Winter volume down by 9 per cent.
+
+The paper carried his name. He did not see it published.
+
+The mission was planned to last three years. It has now been operating for more than sixteen. Still circling at 92 degrees inclination, reaching 88 degrees north, closer to the pole than earlier missions could manage. Still sending down its pulses, still listening for echoes. Still measuring the thing that is going.
+
+And somewhere in the Arctic Ocean north of Greenland, under the ice it was built to measure, the first CryoSat is still there. Waiting, I suppose, for the ice to thin enough that someone might find it. That is also not ironic. That is also just what happened.

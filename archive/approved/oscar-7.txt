@@ -1,0 +1,19 @@
+On the morning of 21 June 2002, a man in England heard a ghost. Pat Gowen, callsign G3IOR, was scanning the bands the way radio amateurs do, which is to say the way other people check on a window box or a shed, when he picked up a beacon from AMSAT-OSCAR 7. The satellite had been silent for twenty-one years.
+
+I want to be careful here. When I say "silent," I mean it had stopped transmitting. When I say "twenty-one years," I mean longer than some marriages, longer than the gap between two different versions of a person. And when I say Pat Gowen heard it, I mean he was still listening.
+
+That's the part that interests me. Not the satellite waking up, we'll get to that, but the fact that someone was tuned to a frequency where nothing had happened since 1981. There's a kind of faith in that, or a kind of habit, and I'm not sure the difference matters.
+
+OSCAR-7 was built by volunteers. Engineers from the USA, Canada, West Germany and Australia, working evenings and weekends, mostly people with day jobs in aerospace who came home and kept going. It cost about sixty thousand dollars in 1974, which is what a committee might spend on a launch party. A comparable commercial satellite would have run to two million. They finished it, and on 15 November 1974 it rode a Delta rocket out of Vandenberg as a secondary payload, tucked beside a weather satellite the way you'd put a smaller bag in the overhead bin.
+
+It carried two linear transponders, which is a term that sounds more complicated than it is. A transponder listens to a slice of the radio spectrum, whatever's there, voices, Morse, someone's nervous cough before they key the mic, and repeats it on another band. So if you're in Portugal and I'm in Finland, we can both talk to the satellite, and the satellite doesn't care what we're saying, it just reflects us back to each other. A mirror that doesn't judge.
+
+For six and a half years it worked. Then, in June 1981, a battery cell short-circuited. The solar panels kept making power, but the power poured into the dead cell and nothing reached the radios. It went quiet. The planned life had been five to ten years, so this was a little early, but not embarrassingly so. People moved on.
+
+And then, over two decades later, the short became an open circuit. The battery, which had been a drain, became nothing at all, effectively removed from the system. The solar panels fed the electronics directly, and the satellite woke up.
+
+I've asked engineers about this. The phrase I keep hearing is "not supposed to happen." Batteries that fail that way do not usually fail again in a way that fixes the first failure. It's like dropping a glass, watching it shatter, and then two decades later the shards crawl back together and ask for water.
+
+There's a legend, unconfirmed, that Poland's Solidarity underground used it during martial law. The timing doesn't quite work, martial law began in December 1981, after OSCAR-7 had already fallen silent, and the story may belong to a different satellite entirely. But I like that it has legends now. A machine built in garages by people whose names you'd have to look up has been in orbit long enough to acquire myths.
+
+It is older than most of the people who talk through it. Contacts are reported daily, made with modest equipment, through electronics built when Gerald Ford was president. In northern summer and autumn it passes through the Earth's shadow on every orbit, loses power, and dies a little death. Every time it comes back into sunlight it wakes without knowing which mode it will be in, and begins to repeat whatever it hears.

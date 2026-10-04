@@ -113,6 +113,7 @@ async function startServer(dataDir, extraEnv = {}) {
   const env = {
     PATH: process.env.PATH, PORT: String(port), DATA_DIR: dataDir,
     MAPBOX_TOKEN: "pk.test-token",
+    APPROVED_DIR: path.join(dataDir, "no-approved-stories"),   // the real ones would hide the generator
     CELESTRAK_URL: `${stubUrl}/gp.php`,
     SATNOGS_URL: `${stubUrl}/satnogs`,
     TLEAPI_URL: `${stubUrl}/tleapi`,
@@ -272,6 +273,34 @@ test("narration: one paid call per story version, cached, range-capable, never m
     assert.equal(stale.status, 410, "audio for a different text is refused");
     assert.equal((await fetch(s.base + "/api/narrate/nope/0000000000000000.mp3")).status, 404);
   } finally { await s.stop(); }
+});
+
+test("approved stories: served as written, never generated, unchanged by restarts", async () => {
+  const approved = tmp();
+  fs.writeFileSync(path.join(approved, "noaa-19.txt"), "First paragraph, kept exactly.\n\nSecond one, with *quiet* emphasis.\n");
+  const env = { APPROVED_DIR: approved, STORY_VERSION: "v3" };
+  const dir = tmp();
+  let first;
+  const s = await startServer(dir, env);
+  try {
+    sentToAnthropic.length = 0;
+    first = await (await post(s.base, "/api/story", { id: "noaa-19" })).json();
+    assert.equal(first.text, "First paragraph, kept exactly.\n\nSecond one, with *quiet* emphasis.");
+    assert.equal(sentToAnthropic.length, 0, "no model call for an approved story");
+    assert.equal((await fetch(s.base + first.audio)).status, 200, "narrated from the approved text");
+    const other = await (await post(s.base, "/api/story", { id: "oscar-7" })).json();
+    assert.ok(sentToAnthropic.length >= 1, "satellites without an approved file are still generated");
+    assert.ok(other.text.length > 0);
+  } finally { await s.stop(); }
+
+  const s2 = await startServer(tmp(), env);                    // a fresh disk, as after a deploy
+  try {
+    sentToAnthropic.length = 0;
+    const again = await (await post(s2.base, "/api/story", { id: "noaa-19" })).json();
+    assert.equal(again.text, first.text);
+    assert.equal(again.audio, first.audio, "same address, so browsers keep their cached audio");
+    assert.equal(sentToAnthropic.length, 0);
+  } finally { await s2.stop(); }
 });
 
 test("narration: American spelling in the audio only, the voice's own settings, the configured model", async () => {

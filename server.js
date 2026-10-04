@@ -303,7 +303,17 @@ function briefFor(id) {
   catch (e) { return null; }
 }
 const briefIds = () => CATALOGUE.map(s => s.id).filter(id => briefFor(id));
-const liveVersion = id => (STORY_VERSION !== "v1" && briefFor(id) ? STORY_VERSION : "v1");
+// Approved stories: archive/approved/<id>.txt is served exactly as written. It
+// is the live story for that satellite, is never regenerated, and, being in the
+// repo, survives every deploy.
+const APPROVED_DIR = process.env.APPROVED_DIR || path.join(ARCHIVE_DIR, "approved");
+function approvedFor(id) {
+  try {
+    const text = cleanStory(fs.readFileSync(path.join(APPROVED_DIR, `${id}.txt`), "utf8"));
+    return text || null;
+  } catch (e) { return null; }
+}
+const liveVersion = id => (approvedFor(id) ? "approved" : STORY_VERSION !== "v1" && briefFor(id) ? STORY_VERSION : "v1");
 const storyFile = (id, v) => path.join(STORY_DIR, v === "v1" ? `${id}.json` : `${id}.${v}.json`);
 
 const stories = new Map();                     // "v:id" -> { text, hash, createdAt }
@@ -338,6 +348,10 @@ function requestFor(id, v) {
 }
 
 async function readStory(id, v = liveVersion(id)) {
+  if (v === "approved") {
+    const text = approvedFor(id);
+    return text ? { text, hash: hashOf(text), createdAt: null, changes: [] } : null;
+  }
   const key = `${v}:${id}`;
   if (stories.has(key)) return stories.get(key);
   try {
@@ -354,6 +368,7 @@ async function readStory(id, v = liveVersion(id)) {
 async function getStory(id, v = liveVersion(id)) {
   const existing = await readStory(id, v);
   if (existing) return existing;
+  if (v === "approved") throw httpError(404, "That approved entry has gone missing.");
 
   return once(`story:${v}:${id}`, async () => {
     const again = await readStory(id, v);

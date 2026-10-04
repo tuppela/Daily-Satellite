@@ -1,0 +1,19 @@
+At 15:28 UTC, 6 September 2003, in a clean room at Lockheed Martin Space Systems, Sunnyvale, California, a turnover cart was rotating the satellite designated NOAA-N Prime from vertical to horizontal. At 13 degrees of tilt the adapter plate separated from the cart. The satellite fell approximately one metre to the concrete floor.
+
+Twenty-four bolts had secured the adapter plate. All twenty-four were absent. A team from another project had removed them at some earlier date and had not documented the removal. The team preparing NOAA-N Prime for rotation did not physically verify the bolts, as the procedure required, but consulted the paperwork instead. The paperwork was silent on the matter of the bolts. The bolts, for their part, were elsewhere.
+
+This is the point where the procedural language starts to feel inadequate, because what I keep thinking about is the moment someone realised the bolts were not there. Not during the fall: there's no time for realisation during a fall. But after. The silence in a clean room after two hundred and thirty-three million dollars hits the floor. Everyone in their bunny suits, looking at the concrete, looking at each other, waiting for someone else to say something first.
+
+I've been in rooms like that. Not with satellites, but with silences of that shape. The terrible thing isn't the event. The terrible thing is the half-second before anyone decides what the event means, when it might still be recoverable, when you're watching people's faces to see if you're allowed to panic.
+
+At least fifteen per cent of the satellite needed complete replacement. The repair bill was a hundred and thirty-five million dollars. Lockheed Martin forfeited all profit on the contract and later took a thirty-million-dollar charge. The bolts, presumably, were eventually found.
+
+Five and a half years later, on 6 February 2009, NOAA-19 launched from Vandenberg on a Delta II. It entered service that June, eight hundred and fifty kilometres up, circling the Earth every hundred and two minutes in a sun-synchronous orbit. The last of NOAA's long series of polar weather satellites. The one that fell.
+
+What it did up there was, among other things, take pictures. The AVHRR camera worked like a very slow lawn mower: a scanning mirror swept from side to side across the ground below while the satellite's own forward motion carried each new sweep a little further along the track, so the image grew line by line. And here's the part I find unexpectedly moving: it broadcast those pictures continuously, on 137 megahertz, as an audible tone. The brightness of each pixel was carried in the loudness of a 2,400-hertz sound. You could receive it with an inexpensive radio dongle and an antenna made from a coat hanger. The signal was literally a noise that a laptop's sound card could turn back into a picture. For years, people did exactly that, standing in their gardens watching an image of their own coastline assemble on a screen, pulled out of the air from a machine that had once been dropped on its head.
+
+That quiet hobby ended when the POES constellation was decommissioned in 2025. NOAA-19 also carried a search-and-rescue relay. The programme's distress-beacon system is credited with helping to save more than 24,400 lives since 1982. A satellite someone dropped on the floor spent sixteen years listening for people in trouble.
+
+Most of its story happened after the accident, not before. I find that worth sitting with.
+
+On 9 August 2025, NOAA-19 suffered a battery failure. It was decommissioned on 13 August 2025 at 16:55 UTC, shortly before its planned shutdown. The satellite was left in orbit in a safe electrical state. Transmitters off. The adapter plate, this time, attached to nothing.
