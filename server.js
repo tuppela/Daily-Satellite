@@ -33,6 +33,13 @@ const ANTHROPIC_URL =process.env.ANTHROPIC_URL || "https://api.anthropic.com/v1/
 const ELEVENLABS_URL = process.env.ELEVENLABS_URL || "https://api.elevenlabs.io/v1/text-to-speech";
 const STORY_MODEL = process.env.STORY_MODEL || "claude-opus-4-5";
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "jiCqTo2ITOfNYppNYZtK";
+// The speech model. eleven_v4 is the one the voice was tuned with in the
+// ElevenLabs app. Voice settings are NOT sent unless ELEVENLABS_VOICE_SETTINGS
+// holds JSON (e.g. {"stability":0.5}), so the voice's own saved settings apply.
+const TTS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_v4";
+let TTS_SETTINGS = null;
+try { if (process.env.ELEVENLABS_VOICE_SETTINGS) TTS_SETTINGS = JSON.parse(process.env.ELEVENLABS_VOICE_SETTINGS); }
+catch (e) { console.warn("ELEVENLABS_VOICE_SETTINGS is not valid JSON; ignoring it."); }
 
 const BUILD = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 12);
 const TLE_TTL_MS = 2 * 3600 * 1000;            // CelesTrak asks for no more than this
@@ -415,7 +422,7 @@ app.post("/api/story", async (req, res) => {
   if (!BY_ID.has(id)) return res.status(404).json({ error: "Unknown satellite." });
   try {
     const s = await getStory(id);
-    res.json({ text: s.text, audio: `/api/narrate/${id}/${s.hash}.mp3` });
+    res.json({ text: s.text, audio: `/api/narrate/${id}/${audioHash(s)}.mp3` });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
@@ -526,14 +533,55 @@ app.get("/preview/:id", async (req, res) => {
 });
 
 // ─── narration ────────────────────────────────────────────────────────────
+// The page keeps the house British spelling. The voice is an American one, and
+// speech models read accent cues from spelling, so audio gets American spelling.
+const US_SPELLING = [
+  [/\b(met|kilomet|centimet|millimet|lit)re(s?)\b/gi, "$1er$2"],
+  [/\bper cent\b/gi, "percent"],
+  [/\b(col|behavi|fav|neighb|harb|hon|lab|rum|vap)our(s|ed|ing|ite|ites|hood)?\b/gi, "$1or$2"],
+  [/\b(cent|theat|fib|cal)re(s?)\b/gi, "$1er$2"],
+  [/\bprogrammes?\b/gi, m => (m.toLowerCase().endsWith("s") ? "programs" : "program")],
+  [/\b(def|off|lic|pret)ence(s?)\b/gi, "$1ense$2"],
+  [/\b(organis|recognis|realis|civilis|apologis|emphasis|minimis|maximis|criticis|summaris|specialis|authoris|capitalis|colonis|utilis|memoris|visualis|stabilis|normalis|categoris|prioritis|symbolis|modernis|industrialis|characteris|customis|finalis|hospitalis|sensationalis|monetis|neutralis|optimis|standardis|synchronis)(e|es|ed|ing|ation|ations|er|ers)\b/gi,
+    (m, stem, end) => stem.slice(0, -1) + "z" + end],
+  [/\b(analys|paralys|catalys)(e|es|ed|ing)\b/gi, (m, stem, end) => stem.slice(0, -1) + "z" + end],
+  [/\bmaths\b/gi, "math"],
+  [/\baluminium\b/gi, "aluminum"],
+  [/\bgrey(s|ed|er|est)?\b/gi, "gray$1"],
+  [/\bwhilst\b/gi, "while"],
+  [/\btowards\b/gi, "toward"],
+  [/\b(learn|burn|spell|dream)t\b/gi, (m, w) => w + "ed"],
+  [/\b(fuel|travel|cancel|label|level|model|signal|channel|total|marvel|equal|quarrel|counsel)l(ed|ing|er|ers)\b/gi, "$1$2"],
+  [/\bageing\b/gi, "aging"],
+  [/\bsceptic(s|al)?\b/gi, "skeptic$1"],
+  [/\bjewellery\b/gi, "jewelry"],
+];
+// Keeps the capital letter of the word it replaces ("Centre" -> "Center").
+function americanise(text) {
+  let out = text;
+  for (const [re, to] of US_SPELLING) {
+    out = out.replace(re, (...args) => {
+      const m = args[0];
+      const r = typeof to === "function" ? to(...args) : m.replace(new RegExp(re.source, "i"), to);
+      return m[0] === m[0].toUpperCase() && m[0] !== m[0].toLowerCase() ? r[0].toUpperCase() + r.slice(1) : r;
+    });
+  }
+  return out;
+}
+
 // Read the prose, not the markup.
-const spoken = text => text.replace(/\*([^*\n]+)\*/g, "$1");
+const spoken = text => americanise(text.replace(/\*([^*\n]+)\*/g, "$1"));
+
+// The audio address covers the text as spoken, the voice and the model, so a
+// browser that cached the old audio under an immutable header never replays it.
+const audioHash = story => hashOf(`${VOICE_ID}|${TTS_MODEL}|${spoken(story.text)}`);
 
 async function getAudio(id, story) {
-  const file = path.join(AUDIO_DIR, `${id}-${story.hash}.mp3`);
+  const ah = audioHash(story);
+  const file = path.join(AUDIO_DIR, `${id}-${ah}.mp3`);
   try { await fsp.access(file); return file; } catch (e) { /* generate */ }
 
-  return once(`audio:${id}:${story.hash}`, async () => {
+  return once(`audio:${id}:${ah}`, async () => {
     try { await fsp.access(file); return file; } catch (e) { /* still missing */ }
 
     const key = process.env.ELEVENLABS_API_KEY;
@@ -544,8 +592,8 @@ async function getAudio(id, story) {
       headers: { "Content-Type": "application/json", "xi-api-key": key, Accept: "audio/mpeg" },
       body: JSON.stringify({
         text: spoken(story.text),
-        model_id: "eleven_turbo_v2_5",
-        voice_settings: { stability: 0.55, similarity_boost: 0.75 },
+        model_id: TTS_MODEL,
+        ...(TTS_SETTINGS ? { voice_settings: TTS_SETTINGS } : {}),
       }),
     }, 120000);
 
@@ -567,7 +615,7 @@ app.get("/api/narrate/:id/:hash.mp3", async (req, res) => {
   try {
     const story = await readStory(id, liveVersion(id));
     if (!story) return res.status(404).json({ error: "No entry yet." });
-    if (story.hash !== hash) return res.status(410).json({ error: "This entry has been rewritten." });
+    if (audioHash(story) !== hash) return res.status(410).json({ error: "This entry has been rewritten." });
     const file = await getAudio(id, story);
     // Content-addressed, so it can be cached forever. sendFile handles Range
     // requests, which mobile Safari needs for audio.

@@ -34,6 +34,7 @@ function tleFor(norad, date = new Date()) {
 
 // ─── upstream stand-ins ─────────────────────────────────────────────────────
 const calls = { celestrak: 0, satnogs: 0, tleapi: 0, anthropic: 0, eleven: 0 };
+const sentToEleven = [];                       // { path, ...body } per narration request
 const sentToAnthropic = [];                    // { system, content, max_tokens } per story request
 let celestrakUp = true;
 let celestrakHangs = false;                    // what Render actually sees: no answer at all
@@ -87,11 +88,12 @@ const stub = http.createServer((req, res) => {
       assert.match(system, /^You are the keeper of a very old archive/);
       setTimeout(() => {
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ content: [{ type: "text", text: `# Heading to strip\n\nAn entry. ${messages[0].content.slice(0, 40)}\n\nIt went *quietly* on.\n\n---\n\nThe end.` }] }));
+        res.end(JSON.stringify({ content: [{ type: "text", text: `# Heading to strip\n\nAn entry. ${messages[0].content.slice(0, 40)}\n\nIt went *quietly* on.\n\nIt covered three kilometres, twelve per cent of the colour, and the Centre for Modelling.\n\n---\n\nThe end.` }] }));
       }, 150);
     } else if (url.pathname.startsWith("/eleven/")) {
       calls.eleven++;
       const sent = JSON.parse(body);
+      sentToEleven.push({ path: url.pathname, ...sent });
       assert.ok(!sent.text.includes("*"), "narration text has no markup");
       setTimeout(() => {
         res.writeHead(200, { "content-type": "audio/mpeg" });
@@ -270,6 +272,44 @@ test("narration: one paid call per story version, cached, range-capable, never m
     assert.equal(stale.status, 410, "audio for a different text is refused");
     assert.equal((await fetch(s.base + "/api/narrate/nope/0000000000000000.mp3")).status, 404);
   } finally { await s.stop(); }
+});
+
+test("narration: American spelling in the audio only, the voice's own settings, the configured model", async () => {
+  const s = await startServer(tmp(), { ELEVENLABS_VOICE_ID: "voice123", ELEVENLABS_MODEL: "" });
+  try {
+    sentToEleven.length = 0;
+    const story = await (await post(s.base, "/api/story", { id: "iss" })).json();
+    assert.match(story.text, /three kilometres, twelve per cent of the colour, and the Centre for Modelling/, "the page keeps British spelling");
+    const r = await fetch(s.base + story.audio);
+    assert.equal(r.status, 200);
+    const [sent] = sentToEleven;
+    assert.equal(sent.path, "/eleven/voice123", "the configured voice");
+    assert.equal(sent.model_id, "eleven_v4", "v4 is the default model");
+    assert.ok(!("voice_settings" in sent), "no override of the voice's saved settings");
+    assert.match(sent.text, /three kilometers, twelve percent of the color, and the Center for Modeling/, "the voice gets American spelling");
+  } finally { await s.stop(); }
+
+  const s2 = await startServer(tmp(), { ELEVENLABS_MODEL: "eleven_test", ELEVENLABS_VOICE_SETTINGS: '{"stability":0.4}' });
+  try {
+    sentToEleven.length = 0;
+    const story = await (await post(s2.base, "/api/story", { id: "iss" })).json();
+    await fetch(s2.base + story.audio);
+    assert.equal(sentToEleven[0].model_id, "eleven_test");
+    assert.deepEqual(sentToEleven[0].voice_settings, { stability: 0.4 });
+  } finally { await s2.stop(); }
+});
+
+test("narration: a different voice or model gets a different audio address", async () => {
+  const dir = tmp();
+  const a = await startServer(dir, { ELEVENLABS_VOICE_ID: "voiceA" });
+  let first;
+  try { first = (await (await post(a.base, "/api/story", { id: "iss" })).json()).audio; } finally { await a.stop(); }
+  const b = await startServer(dir, { ELEVENLABS_VOICE_ID: "voiceB" });
+  try {
+    const second = (await (await post(b.base, "/api/story", { id: "iss" })).json()).audio;
+    assert.notEqual(first, second, "browsers cache audio forever, so the address must change with the voice");
+    assert.equal((await fetch(b.base + first)).status, 410, "the old address is refused");
+  } finally { await b.stop(); }
 });
 
 test("story versions: live stays on v1 by default; v2 uses the voice file and the brief", async () => {
