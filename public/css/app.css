@@ -334,9 +334,9 @@ html, body {
 }
 .dial i.l { left: calc(var(--dial-edge) - var(--dial-gutter)); }
 .dial i.r { right: calc(var(--dial-edge) - var(--dial-gutter)); }
-.dial i.d2 { width: var(--dial-2); background: rgba(26, 22, 16, 0.10); }
-.dial i.d1 { width: var(--dial-1); background: rgba(26, 22, 16, 0.16); }
-.dial i.d0 { width: var(--dial-0); background: rgba(26, 22, 16, 0.26); }
+.dial i.d2 { width: var(--dial-2); background: rgba(26, 22, 16, 0.16); }
+.dial i.d1 { width: var(--dial-1); background: rgba(26, 22, 16, 0.28); }
+.dial i.d0 { width: var(--dial-0); background: rgba(26, 22, 16, 0.46); }
 @media (prefers-reduced-motion: reduce) { .dial i { transition: none; } }
 #panel-text-content p:last-child { margin-bottom: 0; }
 #panel-loading {

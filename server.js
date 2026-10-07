@@ -591,7 +591,9 @@ const spoken = text => americanise(text.replace(/\*([^*\n]+)\*/g, "$1"));
 
 // The audio address covers the text as spoken, the voice and the model, so a
 // browser that cached the old audio under an immutable header never replays it.
-const audioHash = story => hashOf(`${VOICE_ID}|${TTS_MODEL}|${spoken(story.text)}`);
+// "timed" marks audio generated together with its timings: a browser holding an
+// older untimed take of the same words must not play it against new timings.
+const audioHash = story => hashOf(`${VOICE_ID}|${TTS_MODEL}|timed|${spoken(story.text)}`);
 
 // ElevenLabs can say when each character is spoken. We keep those times beside
 // the audio so the panel can follow the voice line by line.
