@@ -311,6 +311,7 @@ html, body {
   margin-top: -56px;
 }
 #panel-text-content {
+  position: relative;
   font-family: 'Libre Baskerville', Georgia, serif;
   font-size: 14px;
   line-height: 1.85;
@@ -318,6 +319,25 @@ html, body {
   padding: 24px 0 56px;
 }
 #panel-text-content p { margin-bottom: 16px; }
+
+/* The dial: a fine tick on each side of every line. The line being spoken
+   leans furthest in, its neighbours less. Ticks sit in the panel's side margin
+   and grow from its edge toward the text. */
+:root { --dial-gutter: 28px; --dial-edge: 3px; --dial-0: 15px; --dial-1: 10px; --dial-2: 7px; --dial-rest: 5px; }
+.dial { position: absolute; inset: 0; pointer-events: none; }
+.dial i {
+  position: absolute;
+  height: 1px;
+  width: var(--dial-rest);
+  background: var(--panel-ghost);
+  transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.45s ease;
+}
+.dial i.l { left: calc(var(--dial-edge) - var(--dial-gutter)); }
+.dial i.r { right: calc(var(--dial-edge) - var(--dial-gutter)); }
+.dial i.d2 { width: var(--dial-2); background: rgba(26, 22, 16, 0.10); }
+.dial i.d1 { width: var(--dial-1); background: rgba(26, 22, 16, 0.16); }
+.dial i.d0 { width: var(--dial-0); background: rgba(26, 22, 16, 0.26); }
+@media (prefers-reduced-motion: reduce) { .dial i { transition: none; } }
 #panel-text-content p:last-child { margin-bottom: 0; }
 #panel-loading {
   font-family: var(--sc);
@@ -409,6 +429,7 @@ html, body {
   #panel-handle { display: none; }
   #panel-header { padding: 12px 20px 14px; }
   #panel-body { padding: 0 20px; }
+  :root { --dial-gutter: 20px; --dial-edge: 2px; --dial-0: 11px; --dial-1: 8px; --dial-2: 6px; --dial-rest: 4px; }
   #panel-name-row { padding: 16px 20px 0; }
   #panel-sat-name { font-size: 26px; }
   #panel-data-strip { padding: 12px 20px 28px; }

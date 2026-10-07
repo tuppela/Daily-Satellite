@@ -143,8 +143,9 @@ function createEnvironment({ width = 1280, height = 800 } = {}) {
     if (u === "/api/story") {
       const { id } = JSON.parse(opts.body);
       await new Promise(r => setTimeout(r, storyDelay[id] || 0));
-      return json({ text: `# ${id}\n\nThe entry for ${id}.\n\nIt went *quietly* on.`, audio: `/api/narrate/${id}/abc.mp3` });
+      return json({ text: `# ${id}\n\nThe entry for ${id}.\n\nIt went *quietly* on.`, audio: `/api/narrate/${id}/abc.mp3`, timings: `/api/narrate/${id}/abc.json` });
     }
+    if (u.endsWith("/abc.json")) return json({ words: u.includes("/iss/") ? [0, 1, 2, 3, 4, 5, 6, 7] : null });
     throw new Error("unexpected fetch " + u);
   };
 
@@ -174,7 +175,7 @@ function createEnvironment({ width = 1280, height = 800 } = {}) {
   const ctx = dom.getInternalVMContext();
   // The same UMD bundle the page loads from the CDN, in the page's own realm.
   new vm.Script(read("node_modules/satellite.js/dist/satellite.min.js"), { filename: "satellite.min.js" }).runInContext(ctx);
-  for (const f of ["orbit.js", "projector.js", "scene.js", "ui.js", "main.js"]) {
+  for (const f of ["orbit.js", "projector.js", "scene.js", "follow.js", "ui.js", "main.js"]) {
     new vm.Script(read(`public/js/${f}`), { filename: f }).runInContext(ctx);
   }
   return env;
@@ -429,5 +430,114 @@ test("mobile flies in closer", async () => {
   env.label("ISS").click();
   await env.wait(5);
   assert.equal(env.map.flyCalls[0].zoom, 8);
+  env.w.close();
+});
+
+
+// ─── follow: the dial and the teleprompter ───────────────────────────────────
+// jsdom does no layout, so the page is given one: three words to a line, lines
+// 200px apart, in a panel 300px tall.
+async function openedStory(id, label) {
+  const env = await booted();
+  const w = env.w, body = env.$("panel-body");
+  w.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (!this.classList || !this.classList.contains("w")) return { top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 };
+    const i = [...env.$("panel-text-content").querySelectorAll(".w")].indexOf(this);
+    return { top: Math.floor(i / 3) * 200, left: 0, width: 40, height: 14, right: 40, bottom: 14 };
+  };
+  Object.defineProperty(body, "clientHeight", { value: 300, configurable: true });
+  Object.defineProperty(body, "scrollHeight", { value: 2000, configurable: true });
+  env.label(label).click();
+  await env.wait(5);
+  return env;
+}
+const ticksOf = (env, side) => [...env.$("panel-text-content").querySelectorAll(`.dial i.${side}`)].map(i => i.className);
+
+test("dial: every word is wrapped, every line gets a tick on each side, nothing leans before the voice starts", async () => {
+  const env = await openedStory("iss", "ISS");
+  const words = [...env.$("panel-text-content").querySelectorAll(".w")];
+  assert.equal(words.length, 8, "The entry for iss. It went quietly on.");
+  assert.equal(env.$("panel-text-content").querySelector("p").textContent, "The entry for iss.", "the text reads as before");
+  assert.equal(env.$("panel-text-content").querySelector("em").textContent, "quietly", "italics survive");
+  assert.deepEqual(ticksOf(env, "l"), ["l", "l", "l"], "three lines, three ticks on the left");
+  assert.deepEqual(ticksOf(env, "r"), ["r", "r", "r"], "and on the right");
+  assert.equal(env.$("panel-text-content").querySelector(".dial").getAttribute("aria-hidden"), "true");
+  env.w.close();
+});
+
+test("following: the spoken line leans in furthest, its neighbours less, and the text glides to it", async () => {
+  const env = await openedStory("iss", "ISS");
+  const body = env.$("panel-body");
+  env.$("ctrl-listen").click();
+  const a = env.audios[0];
+  a.duration = 8;
+  await env.flush(); await env.flush();            // the exact timings arrive
+
+  a.currentTime = 4;                               // words 3-5 are the second line
+  env.run(1500);
+  assert.deepEqual(ticksOf(env, "l"), ["l d1", "l d0", "l d1"]);
+  assert.deepEqual(ticksOf(env, "r"), ["r d1", "r d0", "r d1"]);
+  const rest = 207 + 200 * ((4.12 - 3) / 3) - 300 * 0.36;     // line centre, part-way to the next, at the resting point
+  assert.ok(Math.abs(body.scrollTop - rest) < 2, `scrolled to ${body.scrollTop}, wanted about ${rest}`);
+
+  a.currentTime = 7;                               // last line
+  env.run(1500);
+  assert.deepEqual(ticksOf(env, "l"), ["l d2", "l d1", "l d0"], "two lines away still leans a little");
+  env.w.close();
+});
+
+test("following: without exact timings it estimates from how far through the text each word is", async () => {
+  const env = await openedStory("terra", "TERRA");
+  env.$("ctrl-listen").click();
+  const a = env.audios[0];
+  a.duration = 8;
+  await env.flush(); await env.flush();
+  a.currentTime = 4;
+  env.run(300);
+  assert.deepEqual(ticksOf(env, "l"), ["l d1", "l d0", "l d1"], "about half way through the text, so the middle line");
+  env.w.close();
+});
+
+test("the reader scrolls: the voice pauses and the text stays put; play glides back and resumes", async () => {
+  const env = await openedStory("iss", "ISS");
+  const body = env.$("panel-body"), btn = env.$("ctrl-listen");
+  btn.click();
+  const a = env.audios[0];
+  a.duration = 8; a.currentTime = 4;
+  await env.flush(); await env.flush();
+  env.run(1500);
+  const following = body.scrollTop;
+  assert.ok(following > 100);
+
+  body.dispatchEvent(new env.w.Event("wheel"));
+  assert.equal(a.paused, true, "scrolling by hand pauses the voice");
+  assert.equal(btn.textContent, "▶ Resume");
+  body.scrollTop = 40;                             // the reader has gone back up
+  env.run(1000);
+  assert.equal(body.scrollTop, 40, "the text does not fight the reader");
+
+  btn.click();                                     // play again
+  assert.equal(a.paused, false);
+  env.run(1500);
+  assert.ok(Math.abs(body.scrollTop - following) < 2, "glided back to the narrator's line");
+
+  // our own scrolling is never mistaken for the reader's
+  assert.equal(a.paused, false);
+  env.w.close();
+});
+
+test("following: finishing relaxes the dial, and closing the panel stops everything", async () => {
+  const env = await openedStory("iss", "ISS");
+  env.$("ctrl-listen").click();
+  const a = env.audios[0];
+  a.duration = 8; a.currentTime = 4;
+  await env.flush(); await env.flush();
+  env.run(100);
+  assert.ok(ticksOf(env, "l").some(c => /d0/.test(c)));
+  a.ended = true; a.paused = true;
+  a.dispatchEvent(new env.w.Event("ended"));
+  assert.deepEqual(ticksOf(env, "l"), ["l", "l", "l"]);
+  env.$("ctrl-close").click();
+  env.run(100);
   env.w.close();
 });

@@ -34,6 +34,7 @@ function tleFor(norad, date = new Date()) {
 
 // ─── upstream stand-ins ─────────────────────────────────────────────────────
 const calls = { celestrak: 0, satnogs: 0, tleapi: 0, anthropic: 0, eleven: 0 };
+const elevenMode = { timestamps: "ok" };       // "unsupported" makes the timings call fail the way an unsupported model would
 const sentToEleven = [];                       // { path, ...body } per narration request
 const sentToAnthropic = [];                    // { system, content, max_tokens } per story request
 let celestrakUp = true;
@@ -96,6 +97,20 @@ const stub = http.createServer((req, res) => {
       sentToEleven.push({ path: url.pathname, ...sent });
       assert.ok(!sent.text.includes("*"), "narration text has no markup");
       setTimeout(() => {
+        if (url.pathname.endsWith("/with-timestamps")) {
+          if (elevenMode.timestamps === "unsupported") { res.writeHead(422); return res.end("no timestamps for this model"); }
+          // One time per character, a tenth of a second each.
+          const chars = [...sent.text];
+          res.writeHead(200, { "content-type": "application/json" });
+          return res.end(JSON.stringify({
+            audio_base64: Buffer.alloc(8000, 7).toString("base64"),
+            alignment: {
+              characters: chars,
+              character_start_times_seconds: chars.map((_, i) => i / 10),
+              character_end_times_seconds: chars.map((_, i) => (i + 1) / 10),
+            },
+          }));
+        }
         res.writeHead(200, { "content-type": "audio/mpeg" });
         res.end(Buffer.alloc(8000, 7));
       }, 200);
@@ -153,7 +168,7 @@ test("app shell: token and build injected, assets served, unknown api 404s", asy
     assert.equal(deep.status, 200);
     assert.ok((await deep.text()).includes("pk.test-token"), "deep links get the token too");
 
-    for (const f of ["/js/orbit.js", "/js/projector.js", "/js/scene.js", "/js/ui.js", "/js/main.js", "/css/app.css", "/data/catalogue.json"]) {
+    for (const f of ["/js/orbit.js", "/js/projector.js", "/js/scene.js", "/js/follow.js", "/js/ui.js", "/js/main.js", "/css/app.css", "/data/catalogue.json"]) {
       const r = await fetch(s.base + f);
       assert.equal(r.status, 200, f);
       assert.equal(r.headers.get("cache-control"), "no-cache", f);
@@ -312,7 +327,7 @@ test("narration: American spelling in the audio only, the voice's own settings, 
     const r = await fetch(s.base + story.audio);
     assert.equal(r.status, 200);
     const [sent] = sentToEleven;
-    assert.equal(sent.path, "/eleven/voice123", "the configured voice");
+    assert.equal(sent.path, "/eleven/voice123/with-timestamps", "the configured voice, asking for timings");
     assert.equal(sent.model_id, "eleven_v4", "v4 is the default model");
     assert.ok(!("voice_settings" in sent), "no override of the voice's saved settings");
     assert.match(sent.text, /three kilometers, twelve percent of the color, and the Center for Modeling/, "the voice gets American spelling");
@@ -451,5 +466,59 @@ test("missing keys fail politely, not with a crash", async () => {
     assert.equal(r.status, 503);
     assert.match((await r.json()).error, /archive is closed/);
     assert.ok((await fetch(s.base + "/healthz")).ok, "still alive");
+  } finally { await s.stop(); }
+});
+
+
+test("narration timings: one start time per displayed word, from the voice's own character times", async () => {
+  const approved = tmp();
+  fs.writeFileSync(path.join(approved, "noaa-19.txt"), "First words here.\n\nSecond *one*, with three kilometres.\n");
+  const s = await startServer(tmp(), { APPROVED_DIR: approved });
+  try {
+    sentToEleven.length = 0;
+    const story = await (await post(s.base, "/api/story", { id: "noaa-19" })).json();
+    assert.match(story.timings, /^\/api\/narrate\/noaa-19\/[0-9a-f]+\.json$/);
+    assert.equal(story.timings.split("/").pop().replace(".json", ""), story.audio.split("/").pop().replace(".mp3", ""));
+
+    const r = await fetch(s.base + story.timings);
+    assert.equal(r.status, 200);
+    assert.match(r.headers.get("cache-control"), /immutable/);
+    const { words } = await r.json();
+    // "First words here.  Second one, with three kilometers." as spoken, 0.1 s per character
+    const spoken = sentToEleven[0].text;
+    assert.equal(words.length, 8, "First words here. Second one, with three kilometres.");
+    assert.equal(words[0], 0);
+    assert.equal(words[1], +(spoken.indexOf("words") / 10).toFixed(2));
+    assert.equal(words[3], +(spoken.indexOf("Second") / 10).toFixed(2));
+    assert.ok(words.every((t, i) => i === 0 || t >= words[i - 1]), "never runs backwards");
+    assert.equal(sentToEleven.length, 1, "audio and timings came from one paid call");
+    assert.match(sentToEleven[0].path, /\/with-timestamps$/);
+
+    // The audio itself still comes from the same call.
+    assert.equal((await (await fetch(s.base + story.audio)).arrayBuffer()).byteLength, 8000);
+    assert.equal(sentToEleven.length, 1);
+  } finally { await s.stop(); }
+});
+
+test("narration timings: a model without timestamps still narrates, and the panel is told to estimate", async () => {
+  const s = await startServer(tmp());
+  try {
+    elevenMode.timestamps = "unsupported";
+    sentToEleven.length = 0;
+    const story = await (await post(s.base, "/api/story", { id: "iss" })).json();
+    const r = await fetch(s.base + story.audio);
+    assert.equal(r.status, 200);
+    assert.equal((await r.arrayBuffer()).byteLength, 8000);
+    assert.equal(sentToEleven.length, 2, "tried timings, then plain audio");
+    assert.deepEqual(await (await fetch(s.base + story.timings)).json(), { words: null });
+  } finally { elevenMode.timestamps = "ok"; await s.stop(); }
+});
+
+test("narration timings: the address is checked like the audio's", async () => {
+  const s = await startServer(tmp());
+  try {
+    await post(s.base, "/api/story", { id: "iss" });
+    assert.equal((await fetch(s.base + "/api/narrate/iss/0000000000000000.json")).status, 410);
+    assert.equal((await fetch(s.base + "/api/narrate/nope/0000000000000000.json")).status, 404);
   } finally { await s.stop(); }
 });

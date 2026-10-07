@@ -16,6 +16,11 @@ function createUI(scene) {
   let liveTimer = null;
   let dailyId = null;
 
+  // The text follows the voice; scrolling it by hand pauses the voice.
+  const follower = createFollower(textEl, body, {
+    onReaderScroll() { if (narrator.audio && !narrator.audio.paused) narrator.audio.pause(); },
+  });
+
   // ─── narrator ──────────────────────────────────────────────────────────
   // The <audio> element is created inside the click, so mobile Safari treats
   // play() as user-initiated. The URL is content-addressed by the server, so
@@ -23,13 +28,15 @@ function createUI(scene) {
   const narrator = {
     audio: null,
     url: null,
+    timings: null,
     set(label, enabled) {
       listenBtn.textContent = label;
       listenBtn.disabled = !enabled;
     },
-    ready(url) { this.stop(); this.url = url; this.set("▶ Listen", !!url); },
-    reset() { this.stop(); this.url = null; this.set("▶ Listen", false); },
+    ready(url, timings) { this.stop(); this.url = url; this.timings = timings || null; this.set("▶ Listen", !!url); },
+    reset() { this.stop(); this.url = null; this.timings = null; this.set("▶ Listen", false); },
     stop() {
+      follower.detach();
       if (this.audio) {
         const a = this.audio;
         this.audio = null;
@@ -48,6 +55,7 @@ function createUI(scene) {
       const a = new Audio(this.url);
       a.preload = "auto";
       this.audio = a;
+      follower.attach(a, this.timings);
       this.set("… Loading", true);
       a.addEventListener("playing", () => { if (this.audio === a) this.set("◼ Pause", true); });
       a.addEventListener("pause", () => { if (this.audio === a && !a.ended) this.set("▶ Resume", true); });
@@ -55,6 +63,7 @@ function createUI(scene) {
       a.addEventListener("error", () => {
         if (this.audio !== a) return;
         this.audio = null;
+        follower.detach();
         this.set("✕ Unavailable", false);
         setTimeout(() => { if (!this.audio && this.url) this.set("▶ Listen", true); }, 4000);
       });
@@ -64,27 +73,14 @@ function createUI(scene) {
   listenBtn.addEventListener("click", () => narrator.toggle());
 
   // ─── story rendering ───────────────────────────────────────────────────
-  // Built from DOM nodes, never innerHTML, and *emphasis* becomes italics.
+  // Built from DOM nodes, never innerHTML. The follower wraps each word, turns
+  // *emphasis* into italics and draws the dial beside the lines.
   function renderStory(text) {
-    textEl.textContent = "";
-    const paras = text.split(/\n+/).map(p => p.trim()).filter(p => p && !p.startsWith("#"));
-    for (const para of paras) {
-      const p = document.createElement("p");
-      for (const part of para.split(/(\*[^*\n]+\*)/)) {
-        if (!part) continue;
-        if (part.length > 2 && part.startsWith("*") && part.endsWith("*")) {
-          const em = document.createElement("em");
-          em.textContent = part.slice(1, -1);
-          p.appendChild(em);
-        } else {
-          p.appendChild(document.createTextNode(part));
-        }
-      }
-      textEl.appendChild(p);
-    }
+    follower.render(text);
   }
 
   function setMessage(msg, loading) {
+    follower.clear();
     textEl.textContent = "";
     const p = document.createElement("p");
     if (loading) p.id = "panel-loading";
@@ -163,7 +159,7 @@ function createUI(scene) {
       if (my !== request) return;                 // the user has moved on
       if (res.ok && data.text) {
         renderStory(data.text);
-        narrator.ready(data.audio || null);
+        narrator.ready(data.audio || null, data.timings || null);
       } else {
         setMessage(data.error || "The archivist could not be reached.");
       }

@@ -17,6 +17,7 @@ const fsp = fs.promises;
 const crypto = require("crypto");
 const http = require("http");
 const https = require("https");
+const { wordSpans, displayText, wordStarts } = require("./lib/timing");
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC = path.join(__dirname, "public");
@@ -437,7 +438,8 @@ app.post("/api/story", async (req, res) => {
   if (!BY_ID.has(id)) return res.status(404).json({ error: "Unknown satellite." });
   try {
     const s = await getStory(id);
-    res.json({ text: s.text, audio: `/api/narrate/${id}/${audioHash(s)}.mp3` });
+    const ah = audioHash(s);
+    res.json({ text: s.text, audio: `/api/narrate/${id}/${ah}.mp3`, timings: `/api/narrate/${id}/${ah}.json` });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
@@ -591,6 +593,11 @@ const spoken = text => americanise(text.replace(/\*([^*\n]+)\*/g, "$1"));
 // browser that cached the old audio under an immutable header never replays it.
 const audioHash = story => hashOf(`${VOICE_ID}|${TTS_MODEL}|${spoken(story.text)}`);
 
+// ElevenLabs can say when each character is spoken. We keep those times beside
+// the audio so the panel can follow the voice line by line.
+const timingFile = (id, ah) => path.join(AUDIO_DIR, `${id}-${ah}.json`);
+const shownWordCount = text => wordSpans(displayText(text)).length;
+
 async function getAudio(id, story) {
   const ah = audioHash(story);
   const file = path.join(AUDIO_DIR, `${id}-${ah}.mp3`);
@@ -602,24 +609,50 @@ async function getAudio(id, story) {
     const key = process.env.ELEVENLABS_API_KEY;
     if (!key) throw httpError(503, "Narration is not configured.");
 
-    const res = await fetchWithTimeout(`${ELEVENLABS_URL}/${VOICE_ID}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "xi-api-key": key, Accept: "audio/mpeg" },
-      body: JSON.stringify({
-        text: spoken(story.text),
-        model_id: TTS_MODEL,
-        ...(TTS_SETTINGS ? { voice_settings: TTS_SETTINGS } : {}),
-      }),
-    }, 120000);
+    const text = spoken(story.text);
+    const body = JSON.stringify({
+      text,
+      model_id: TTS_MODEL,
+      ...(TTS_SETTINGS ? { voice_settings: TTS_SETTINGS } : {}),
+    });
+    const headers = { "Content-Type": "application/json", "xi-api-key": key };
 
-    if (!res.ok) {
-      console.error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      throw httpError(502, `Narration unavailable (${res.status}).`);
+    let buf = null, words = null;
+
+    // First choice: audio and character times in one call.
+    const timed = await fetchWithTimeout(`${ELEVENLABS_URL}/${VOICE_ID}/with-timestamps`,
+      { method: "POST", headers: { ...headers, Accept: "application/json" }, body }, 120000);
+    if (timed.ok) {
+      try {
+        const j = await timed.json();
+        buf = Buffer.from(j.audio_base64 || "", "base64");
+        words = wordStarts(text, j.alignment, shownWordCount(story.text));
+        if (!words) console.warn(`No usable timings for ${id}; the panel will estimate.`);
+      } catch (e) { buf = null; }
+    } else if ([400, 404, 405, 422].includes(timed.status)) {
+      console.warn(`ElevenLabs timings unavailable (${timed.status}): ${(await timed.text()).slice(0, 200)}`);
+    } else {
+      console.error(`ElevenLabs ${timed.status}: ${(await timed.text()).slice(0, 200)}`);
+      throw httpError(502, `Narration unavailable (${timed.status}).`);
     }
-    const buf = Buffer.from(await res.arrayBuffer());
+
+    // Fallback: plain audio, no timings.
+    if (!buf || buf.length < 1000) {
+      buf = null; words = null;
+      const res = await fetchWithTimeout(`${ELEVENLABS_URL}/${VOICE_ID}`,
+        { method: "POST", headers: { ...headers, Accept: "audio/mpeg" }, body }, 120000);
+      if (!res.ok) {
+        console.error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        throw httpError(502, `Narration unavailable (${res.status}).`);
+      }
+      buf = Buffer.from(await res.arrayBuffer());
+    }
     if (buf.length < 1000) throw httpError(502, "Narration came back empty.");
+
+    // Timings first: the audio file is what marks the job as done.
+    await writeAtomic(timingFile(id, ah), JSON.stringify({ words }));
     await writeAtomic(file, buf);
-    console.log(`Audio cached: ${path.basename(file)} (${Math.round(buf.length / 1024)} KB)`);
+    console.log(`Audio cached: ${path.basename(file)} (${Math.round(buf.length / 1024)} KB, ${words ? "timed" : "untimed"})`);
     return file;
   });
 }
@@ -637,6 +670,23 @@ app.get("/api/narrate/:id/:hash.mp3", async (req, res) => {
     res.set("Cache-Control", "public, max-age=31536000, immutable");
     res.type("audio/mpeg");
     res.sendFile(file);
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+app.get("/api/narrate/:id/:hash.json", async (req, res) => {
+  const { id, hash } = req.params;
+  if (!BY_ID.has(id)) return res.status(404).end();
+  try {
+    const story = await readStory(id, liveVersion(id));
+    if (!story) return res.status(404).json({ error: "No entry yet." });
+    if (audioHash(story) !== hash) return res.status(410).json({ error: "This entry has been rewritten." });
+    await getAudio(id, story);                       // shares the one generation with the audio request
+    let words = null;
+    try { words = JSON.parse(await fsp.readFile(timingFile(id, hash), "utf8")).words || null; } catch (e) { /* untimed */ }
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    res.json({ words });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }
