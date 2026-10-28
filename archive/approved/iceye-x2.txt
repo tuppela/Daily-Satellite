@@ -1,0 +1,67 @@
+At 21:47 UTC on 15 January 2018, a satellite passing over Alaska looked down for about ten seconds. It photographed an area of Noatak National Preserve roughly eighty kilometres long and forty kilometres wide, collecting more than a gigabyte of raw data.
+
+Two days later, when the image was published, the press release helpfully explained that north was roughly to the right.
+
+That is the sort of detail you include when you are very pleased with yourself but would prefer not to say so.
+
+The satellite was ICEYE-X1. It weighed seventy kilograms: about the weight of a washing machine, or of what a committed group of Finns might bring to a summer cottage for the weekend.
+
+Until then, radar satellites typically weighed more than a thousand kilograms. ICEYE was trying to do the same job with something a fraction of that weight.
+
+The trick was movement.
+
+A normal camera needs light and a clear view. Radar sends out its own radio waves, so darkness and clouds are much less of a problem. But small antennas produce blurry images.
+
+The way around it is synthetic-aperture radar, a technique that dates from the 1950s. ICEYE's achievement was making it small. As the satellite moves through orbit, it collects echoes from the same place at different positions. Software combines them to create the effect of a much larger antenna.
+
+Instead of carrying a huge instrument into space, the satellite uses the journey itself to see more clearly. A very Finnish attitude to it: if the instrument can't be bigger, make it work harder.
+
+The idea began as a course project at Aalto University in 2012. Rafał Modrzewski had come to Finland from Poland on an Erasmus exchange. He met Pekka Laurila, and together they developed the idea into a company.
+
+Exchanges are supposed to end. This one produced a satellite company.
+
+The name ICEYE came from the original ambition: observing Arctic ice along the Northern Sea Route. The company eventually expanded into much broader Earth observation, including disaster monitoring, maritime surveillance and defence.
+
+At some point, there was reportedly a radar prototype on an office roof in Helsinki, sheltered by a white tent tied to scaffolding and pointed at the International Space Station.
+
+The radar produced a clear image.
+
+The tent, apparently, looked as though a modest gust of wind might bring the whole operation to an end.
+
+I would have waited for calmer weather. This is one reason I am not an engineer at ICEYE.
+
+On 29 June 2018, the company announced that X1 had completed its mission.
+
+The satellite stayed in orbit.
+
+You know the feeling. You say goodbye to someone at the door, properly. Then you discover you are both walking to the same station.
+
+Now you must continue being a person.
+
+You keep a respectful distance. You become fascinated by your phone. Neither of you mentions the situation. The Finnish social contract has no provision for this.
+
+ICEYE-X1 did the orbital equivalent for more than five years.
+
+Its mission was over, but it kept circling the Earth until 10 February 2024, when it re-entered the atmosphere.
+
+The orbital record gives us the date, but not an exact position for its return.
+
+We spend our lives documenting everything. The beginning of a project. The end of a project. The lessons learned. And then something disappears, and the record says: somewhere.
+
+I include myself in this observation. Particularly myself.
+
+ICEYE-X2 launched on 3 December 2018, aboard a SpaceX Falcon 9 rocket from California. It weighed eighty kilograms and was designed to produce sharper images: three metres of resolution instead of ten.
+
+ICEYE called it the first Finnish-Polish satellite. A perfectly good example of international cooperation.
+
+Four days after launch, X2 photographed the mountains of northern Spain at night. The image covered more than five hundred square kilometres and produced 2.4 gigabytes of data.
+
+The technology once considered impossible had now been built twice, and the second version could see more clearly.
+
+Today, a public orbital catalogue still lists X2 in orbit. That does not necessarily mean it is operational. A satellite can keep circling the Earth long after its working life has ended.
+
+The number displayed here is its altitude above the ground, calculated from orbital data. It tells us where the satellite is, approximately. It cannot tell us whether anyone is listening.
+
+But if the catalogue is right, somewhere above us, it keeps moving.
+
+And the darkness makes no difference.

@@ -178,5 +178,14 @@
     "agency": "ESA",
     "launched": "2002-03-01",
     "desc": "ESA's largest Earth observation satellite. Went silent in 2012. Still orbiting."
+  },
+  {
+    "id": "iceye-x2",
+    "name": "ICEYE X2",
+    "norad": 43800,
+    "type": "Earth Observation",
+    "agency": "ICEYE",
+    "launched": "2018-12-03",
+    "desc": "A Finnish radar satellite that sees through cloud and darkness. Built by people who were told it could not be done."
   }
 ]
