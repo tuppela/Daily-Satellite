@@ -340,6 +340,7 @@ test("narration: American spelling in the audio only, the voice's own settings, 
     await fetch(s2.base + story.audio);
     assert.equal(sentToEleven[0].model_id, "eleven_test");
     assert.deepEqual(sentToEleven[0].voice_settings, { stability: 0.4 });
+    assert.equal(sentToEleven[0].language_code, "en", "narration is pinned to English by default");
   } finally { await s2.stop(); }
 });
 
