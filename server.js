@@ -38,6 +38,10 @@ const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "jiCqTo2ITOfNYppNYZtK";
 // ElevenLabs app. Voice settings are NOT sent unless ELEVENLABS_VOICE_SETTINGS
 // holds JSON (e.g. {"stability":0.5}), so the voice's own saved settings apply.
 const TTS_MODEL = process.env.ELEVENLABS_MODEL || "eleven_v4";
+// The narration language. A cloned Finnish voice on a multilingual model can
+// slip into Finnish, reading numbers and dates in Finnish. "en" keeps it in
+// English; set ELEVENLABS_LANGUAGE to "" to let the model decide.
+const TTS_LANGUAGE = process.env.ELEVENLABS_LANGUAGE ?? "en";
 let TTS_SETTINGS = null;
 try { if (process.env.ELEVENLABS_VOICE_SETTINGS) TTS_SETTINGS = JSON.parse(process.env.ELEVENLABS_VOICE_SETTINGS); }
 catch (e) { console.warn("ELEVENLABS_VOICE_SETTINGS is not valid JSON; ignoring it."); }
@@ -623,7 +627,7 @@ const spoken = text => americanise(text.replace(/\*([^*\n]+)\*/g, "$1"));
 // browser that cached the old audio under an immutable header never replays it.
 // "timed" marks audio generated together with its timings: a browser holding an
 // older untimed take of the same words must not play it against new timings.
-const audioHash = story => hashOf(`${VOICE_ID}|${TTS_MODEL}|timed|${spoken(story.text)}`);
+const audioHash = story => hashOf(`${VOICE_ID}|${TTS_MODEL}|${TTS_LANGUAGE}|timed|${spoken(story.text)}`);
 
 // ElevenLabs can say when each character is spoken. We keep those times beside
 // the audio so the panel can follow the voice line by line.
@@ -645,6 +649,7 @@ async function getAudio(id, story) {
     const body = JSON.stringify({
       text,
       model_id: TTS_MODEL,
+      ...(TTS_LANGUAGE ? { language_code: TTS_LANGUAGE } : {}),
       ...(TTS_SETTINGS ? { voice_settings: TTS_SETTINGS } : {}),
     });
     const headers = { "Content-Type": "application/json", "xi-api-key": key };
