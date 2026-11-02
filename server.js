@@ -698,9 +698,34 @@ app.get("/api/narrate/:id/:hash.json", async (req, res) => {
 app.get("/healthz", (req, res) => res.json({ ok: true, build: BUILD, satellites: tles.size }));
 
 const indexPath = path.join(PUBLIC, "index.html");
+const PUBLIC_URL = (process.env.PUBLIC_URL || "https://daily-satellite.onrender.com").replace(/\/$/, "");
+const SITE_DESC = "An editorial archive of objects in Earth orbit, read aloud by its archivist.";
+
+// Each entry has its own address, /s/<id>. The page is the same app; only the
+// title and the link preview change, so a shared link shows the right satellite.
+function metaFor(req) {
+  const m = req.path.match(/^\/s\/([a-z0-9-]+)\/?$/);
+  const sat = m && BY_ID.get(m[1]);
+  const title = sat ? `${sat.name} · Daily Satellite` : "Daily Satellite";
+  const desc = sat ? sat.desc : SITE_DESC;
+  const url = sat ? `${PUBLIC_URL}/s/${sat.id}` : PUBLIC_URL + "/";
+  return `<title>${esc(title)}</title>
+  <meta name="description" content="${esc(desc)}" />
+  <link rel="canonical" href="${esc(url)}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Daily Satellite" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(desc)}" />
+  <meta property="og:url" content="${esc(url)}" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="${esc(title)}" />
+  <meta name="twitter:description" content="${esc(desc)}" />`;
+}
+
 function serveIndex(req, res) {
   const token = JSON.stringify(process.env.MAPBOX_TOKEN || "");
   const html = fs.readFileSync(indexPath, "utf8")
+    .replace("<title>Daily Satellite</title>", () => metaFor(req))
     .replace('window.MAPBOX_TOKEN || ""', token)
     .replace(/__BUILD__/g, BUILD);
   res.set("Cache-Control", "no-cache");

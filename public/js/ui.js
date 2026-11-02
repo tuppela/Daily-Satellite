@@ -168,14 +168,51 @@ function createUI(scene) {
     }
   }
 
-  function closePanel() {
+  function closePanel(updateUrl = true) {
     request++;
     current = null;
     clearInterval(liveTimer);
     narrator.reset();
     panel.classList.remove("visible");
     scene.release();
+    if (updateUrl) setUrl(null);
   }
+
+  // ─── addresses ─────────────────────────────────────────────────────────
+  // Each entry lives at /s/<id>, so a link opens that exact satellite.
+  const pathFor = id => (id ? `/s/${id}` : "/");
+  function idFromPath(p = location.pathname) {
+    const m = p.match(/^\/s\/([a-z0-9-]+)\/?$/);
+    return m ? m[1] : null;
+  }
+  function setUrl(id) {
+    const p = pathFor(id);
+    if (location.pathname !== p) history.pushState({ id }, "", p);
+    document.title = id && catalogueById.get(id) ? `${catalogueById.get(id).name} · Daily Satellite` : "Daily Satellite";
+  }
+  window.addEventListener("popstate", () => {
+    const id = idFromPath();
+    if (id && catalogueById.has(id)) select(id, false);
+    else if (current) closePanel(false);
+  });
+
+  // ─── share ─────────────────────────────────────────────────────────────
+  const shareBtn = $("ctrl-share");
+  shareBtn.addEventListener("click", async () => {
+    if (!current) return;
+    const url = location.origin + pathFor(current.id);
+    const flash = label => {
+      shareBtn.textContent = label;
+      setTimeout(() => { shareBtn.textContent = "↗ Share"; }, 2000);
+    };
+    if (navigator.share) {
+      try { await navigator.share({ title: `${current.name} · Daily Satellite`, url }); }
+      catch (e) { /* closed the share sheet */ }
+      return;
+    }
+    try { await navigator.clipboard.writeText(url); flash("✓ Link copied"); }
+    catch (e) { flash("✕ Could not copy"); }
+  });
 
   function togglePanel() {
     const collapsed = panel.classList.toggle("collapsed");
@@ -183,18 +220,19 @@ function createUI(scene) {
   }
 
   collapseBtn.addEventListener("click", togglePanel);
-  $("ctrl-close").addEventListener("click", closePanel);
+  $("ctrl-close").addEventListener("click", () => closePanel());
   body.addEventListener("scroll", () => { fadeTop.style.opacity = body.scrollTop > 20 ? "1" : "0"; });
 
   // ─── selection ─────────────────────────────────────────────────────────
   let catalogueById = new Map();
 
-  function select(id) {
+  function select(id, updateUrl = true) {
     const sat = catalogueById.get(id);
     if (!sat) return;
     $("daily-card").classList.remove("visible");
     openPanel(sat);
     scene.track(id);
+    if (updateUrl) setUrl(id);
   }
   scene.onSelect(select);
 
@@ -259,5 +297,14 @@ function createUI(scene) {
     setCatalogue(catalogue) { catalogueById = new Map(catalogue.map(s => [s.id, s])); },
     showDailyCard,
     select,
+    // A link to /s/<id> opens that entry straight away. Unknown ids fall back
+    // to the front page.
+    openFromUrl() {
+      const id = idFromPath();
+      if (!id) return false;
+      if (!catalogueById.has(id)) { history.replaceState({}, "", "/"); return false; }
+      select(id, false);
+      return true;
+    },
   };
 }
