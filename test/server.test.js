@@ -164,6 +164,14 @@ test("app shell: token and build injected, assets served, unknown api 404s", asy
     assert.ok(html.includes('window.MAPBOX_TOKEN = "pk.test-token"'), "token injected");
     assert.ok(!html.includes("__BUILD__"), "build id injected everywhere");
 
+    assert.ok(html.includes('<meta property="og:title" content="Daily Satellite"'), "front page has a link preview");
+    const entry = await (await fetch(s.base + "/s/iss")).text();
+    assert.ok(/<title>[^<]*Space Station[^<]*· Daily Satellite<\/title>/.test(entry) || /<title>[^<]+· Daily Satellite<\/title>/.test(entry), "entry has its own title");
+    assert.ok(entry.includes('content="https://daily-satellite.onrender.com/s/iss"'), "entry has its own address in the preview");
+    assert.ok(entry.includes("pk.test-token"), "entry pages get the token too");
+    const unknown = await (await fetch(s.base + "/s/not-a-satellite")).text();
+    assert.ok(unknown.includes("<title>Daily Satellite</title>"), "unknown ids fall back to the front page preview");
+
     const deep = await fetch(s.base + "/some/deep/link");
     assert.equal(deep.status, 200);
     assert.ok((await deep.text()).includes("pk.test-token"), "deep links get the token too");

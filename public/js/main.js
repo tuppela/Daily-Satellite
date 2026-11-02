@@ -76,6 +76,7 @@
       ? `${usable.length} objects tracked`
       : "Orbital data unavailable. Try again shortly.");
     ui.showDailyCard(catalogue, new Set(usable.map(u => u.meta.id)));
+    ui.openFromUrl();          // a shared link opens its entry; the card then stays hidden
   };
 
   if (map.loaded()) start();
