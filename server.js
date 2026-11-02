@@ -56,7 +56,37 @@ const BY_ID = new Map(CATALOGUE.map(s => [s.id, s]));
 
 const app = express();
 app.disable("x-powered-by");
+app.set("trust proxy", 1);                     // Render sits in front; req.ip is the visitor
 app.use(express.json({ limit: "4kb" }));
+
+// ─── rate limit ───────────────────────────────────────────────────────────
+// A small fixed-window limiter per visitor for the API. The caches already cap
+// what a visitor can cost; this stops anyone tipping the free instance over.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = Number(process.env.RATE_MAX) || 60;   // requests per minute per IP
+const hits = new Map();                                  // ip -> { count, reset }
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, h] of hits) if (h.reset <= now) hits.delete(ip);
+}, RATE_WINDOW_MS).unref();
+app.use("/api", (req, res, next) => {
+  const now = Date.now();
+  let h = hits.get(req.ip);
+  if (!h || h.reset <= now) { h = { count: 0, reset: now + RATE_WINDOW_MS }; hits.set(req.ip, h); }
+  if (++h.count > RATE_MAX) {
+    res.set("Retry-After", String(Math.ceil((h.reset - now) / 1000)));
+    return res.status(429).json({ error: "The archive needs a moment. Try again shortly." });
+  }
+  next();
+});
+
+// Basic browser hardening for the public page.
+app.use((req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.set("X-Frame-Options", "SAMEORIGIN");
+  next();
+});
 
 // ─── shared helpers ───────────────────────────────────────────────────────
 const inflight = new Map();
