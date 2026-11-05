@@ -133,7 +133,7 @@ html, body {
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease, opacity 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.round svg { width: 16px; height: 16px; display: block; }
+.round svg { width: 17.6px; height: 17.6px; display: block; }
 .round:focus-visible { outline: 2px solid rgba(26, 26, 26, 0.7); outline-offset: 2px; }
 .round:disabled { opacity: 0.35; cursor: default; }
 .ghost { background: rgba(26, 26, 26, 0.1); color: rgba(26, 26, 26, 0.62); }
@@ -142,11 +142,11 @@ html, body {
 .solid:hover:not(:disabled) { background: #000; }
 .round:active:not(:disabled) { transform: scale(0.94); }
 .small { width: 30px; height: 30px; }
-.small svg { width: 13px; height: 13px; }
+.small svg { width: 14.3px; height: 14.3px; }
 
 /* The play button: one control, five states, set by data-state */
 .play { width: 52px; height: 52px; }
-.play svg { width: 20px; height: 20px; }
+.play svg { width: 22px; height: 22px; }
 .play .i-play, .play .i-pause, .play .i-load { display: none; }
 .play[data-state="idle"] .i-play,
 .play[data-state="paused"] .i-play,
@@ -156,8 +156,11 @@ html, body {
 /* Loading: a cassette hub with six teeth, winding anticlockwise like the
    take-up reel. HUB_TURN is one revolution. */
 .play .i-load {
-  --hub-turn: 0.5s;
-  width: 24px; height: 24px;
+  --hub-turn: 1s;
+  width: 26px; height: 26px;           /* even, so it sits on whole pixels in the 52px button */
+  transform-origin: 50% 50%;
+  will-change: transform;              /* its own layer: turns smoothly instead of snapping to pixels */
+  backface-visibility: hidden;
   animation: hub-wind var(--hub-turn) linear infinite;
 }
 @keyframes hub-wind { to { transform: rotate(-360deg); } }
