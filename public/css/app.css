@@ -156,7 +156,7 @@ html, body {
 /* Loading: a cassette hub with six teeth, winding anticlockwise like the
    take-up reel. HUB_TURN is one revolution. */
 .play .i-load {
-  --hub-turn: 1s;
+  --hub-turn: 2s;
   width: 26px; height: 26px;           /* even, so it sits on whole pixels in the 52px button */
   transform-origin: 50% 50%;
   will-change: transform;              /* its own layer: turns smoothly instead of snapping to pixels */
