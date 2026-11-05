@@ -19,6 +19,8 @@ THE FACTS
 
 Use the fact sheet and what you are certain of, nothing else. Give names, dates and numbers exactly as the sheet gives them. Where the sheet marks something as disputed or as legend, you may tell it only as such. Never invent a quotation, a name, a line of dialogue or a physical detail that someone could check. If you do not know, leave it out.
 
+The one exception is the joke. A made-up detail is allowed when it is plainly part of a punchline or an everyday tangent (a name tag at a conference, a man called Gareth), where no reader could take it for a fact about the satellite, its makers or its history. It must never stand in for a fact, override one, or sit inside the factual account. Quotations attributed to real people stay banned.
+
 Add no number, price, ratio, interval or count that is not on the sheet; no description of an object's shape or appearance that is not on the sheet; and nothing about a real person's profession, feelings, memories or what they knew, beyond what the sheet says. Where the sheet is vague, stay exactly as vague. Jokes get their facts from the sheet. The comedy is in what you make of the facts, never in facts you made up to be funny.
 
 The brief is written to you, not to the reader. Never reuse its wording in the entry.
