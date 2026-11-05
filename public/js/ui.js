@@ -1,11 +1,13 @@
 /* UI
  * The story player, the narrator and the masthead. Every way of choosing a
- * satellite (its label, the waiting card, previous and next, a shared link)
- * goes through select(), so they all behave identically.
+ * satellite (its label, previous and next, a shared link) goes through
+ * select(), so they all behave identically.
  *
- * The player has four modes:
+ * On arrival the camera latches onto today's satellite from afar, its label
+ * showing; tapping that label opens it like any other.
+ *
+ * The player has three modes:
  *   closed     nothing on screen but the globe
- *   idle       a card waiting with today's satellite; tap it to open
  *   open       the full panel
  *   collapsed  a small pill: the story carries on, the globe has the room
  * Opening is always silent. The voice only ever starts from a play button.
@@ -22,7 +24,6 @@ function createUI(scene) {
   const collapseBtn = $("ctrl-collapse");
   const shareBtn = $("ctrl-share");
 
-  const IDLE_DELAY = 1200;   // ms before the waiting card appears
   const PLAY_LABEL = {
     idle: "Play narration",
     loading: "Loading narration",
@@ -31,9 +32,8 @@ function createUI(scene) {
     error: "Narration unavailable",
   };
 
-  let mode = "closed";       // closed | idle | open | collapsed
+  let mode = "closed";       // closed | open | collapsed
   let current = null;        // catalogue entry of the open satellite
-  let idleId = null;         // the satellite the waiting card offers
   let request = 0;           // guards against a slow story landing on the wrong panel
   let liveTimer = null;
   let dailyId = null;
@@ -116,22 +116,19 @@ function createUI(scene) {
   for (const b of playBtns) {
     b.addEventListener("click", e => {
       e.stopPropagation();
-      if (mode === "idle") select(idleId, { play: true });   // pressing play on the waiting card opens it and plays
-      else narrator.toggle();
+      narrator.toggle();
     });
   }
 
   // ─── modes ─────────────────────────────────────────────────────────────
   function setMode(next) {
     mode = next;
-    const shown = next === "idle" || next === "open";
+    const shown = next === "open";
     panel.classList.toggle("visible", shown);
-    panel.classList.toggle("idle", next === "idle");
     panel.classList.toggle("collapsed", next === "collapsed");
     mini.classList.toggle("visible", next === "collapsed");
     panel.inert = !shown;
     mini.inert = next !== "collapsed";
-    panel.tabIndex = next === "idle" ? 0 : -1;
     updateStepButtons();
   }
 
@@ -158,13 +155,6 @@ function createUI(scene) {
     textEl.appendChild(p);
   }
 
-  function setPreview(text) {
-    follower.clear();
-    textEl.textContent = "";
-    const p = document.createElement("p");
-    p.textContent = text;
-    textEl.appendChild(p);
-  }
 
   // ─── header ────────────────────────────────────────────────────────────
   // "Space Station" reads as "Space station": sentence case, acronyms left alone.
@@ -260,7 +250,6 @@ function createUI(scene) {
   }
 
   function closePanel(updateUrl = true) {
-    if (mode === "idle") { setMode("closed"); return; }      // just puts the waiting card away
     request++;
     current = null;
     wantPlay = false;
@@ -279,17 +268,6 @@ function createUI(scene) {
   $("ctrl-close").addEventListener("click", () => closePanel());
   $("mini-close").addEventListener("click", () => closePanel());
   body.addEventListener("scroll", () => { fadeTop.style.opacity = body.scrollTop > 20 ? "1" : "0"; });
-
-  // The waiting card opens when tapped anywhere that is not a button.
-  panel.addEventListener("click", e => {
-    if (mode === "idle" && !e.target.closest("button")) select(idleId);
-  });
-  panel.addEventListener("keydown", e => {
-    if (mode === "idle" && e.target === panel && (e.key === "Enter" || e.key === " ")) {
-      e.preventDefault();
-      select(idleId);
-    }
-  });
 
   // ─── addresses ─────────────────────────────────────────────────────────
   // Each entry lives at /s/<id>, so a link opens that exact satellite.
@@ -350,7 +328,7 @@ function createUI(scene) {
   // silently.
   function step(dir) {
     if (order.length < 2) return;
-    const from = current ? current.id : idleId;
+    const from = current ? current.id : dailyId;
     let i = order.findIndex(s => s.id === from);
     i = i < 0 ? 0 : (i + dir + order.length) % order.length;
     select(order[i].id, { play: narrator.playing || wantPlay });
@@ -358,7 +336,7 @@ function createUI(scene) {
   $("ctrl-prev").addEventListener("click", e => { e.stopPropagation(); step(-1); });
   $("ctrl-next").addEventListener("click", e => { e.stopPropagation(); step(1); });
 
-  // ─── the waiting card ──────────────────────────────────────────────────
+  // ─── today's satellite ─────────────────────────────────────────────────
   // One satellite per UTC day, rotating through the catalogue. If today's
   // pick has no current orbital data, the next available one steps in.
   const LAUNCH_UTC = Date.UTC(2025, 3, 1);
@@ -372,20 +350,6 @@ function createUI(scene) {
     return null;
   }
 
-  // The card shows the catalogue's own line, not the story: reading the story
-  // writes it, and nobody should cost anything just by arriving.
-  function showIdle(sat) {
-    idleId = sat.id;
-    fillHeader(sat);
-    renderData(sat);
-    setPreview(sat.desc || "");
-    narrator.reset();
-    narrator.set("idle", true);
-    body.scrollTop = 0;
-    fadeTop.style.opacity = "0";
-    setMode("idle");
-  }
-
   function showDailyCard(catalogue, availableIds) {
     order = catalogue.filter(s => availableIds.has(s.id));
     updateStepButtons();
@@ -393,9 +357,9 @@ function createUI(scene) {
     if (!sat) return;
     dailyId = sat.id;
     scene.setPriority(dailyId);
-    setTimeout(() => {
-      if (mode === "closed" && !current) showIdle(sat);   // a shared link or an early tap got there first
-    }, IDLE_DELAY);
+    // A shared link opens its own entry instead, so nothing to latch onto.
+    const linked = idFromPath();
+    if (!(linked && catalogueById.has(linked)) && !current) scene.latch(dailyId);
   }
 
   // ─── masthead ──────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@
       container: "map",
       style: "mapbox://styles/mapbox/satellite-v9",
       projection: "globe",
-      zoom: 1.8,
+      zoom: homeZoom(),              // the whole globe, as far out as it opens
       center: [10, 25],
       pitch: 0,
       bearing: 0,
@@ -75,8 +75,8 @@
     ui.setStatus(usable.length
       ? `${usable.length} objects tracked`
       : "Orbital data unavailable. Try again shortly.", usable.length > 0);
-    ui.showDailyCard(catalogue, new Set(usable.map(u => u.meta.id)));
-    ui.openFromUrl();          // a shared link opens its entry; the card then stays hidden
+    ui.showDailyCard(catalogue, new Set(usable.map(u => u.meta.id)));   // latches onto today's satellite
+    ui.openFromUrl();          // a shared link opens its entry instead
   };
 
   if (map.loaded()) start();

@@ -32,13 +32,13 @@ function makeTle(norad, meanAnomaly, raan) {
 }
 
 // ─── environment: jsdom page + fake Mapbox + fake network and audio ──────────
-function createEnvironment({ width = 1280, height = 800 } = {}) {
+function createEnvironment({ width = 1280, height = 800, url = "http://localhost/" } = {}) {
   let clock = 1000;
   let rafQueue = [];
   const raf = fn => { rafQueue.push(fn); return rafQueue.length; };
 
   const html = read("public/index.html").replace(/<script[\s\S]*?<\/script>/g, "");
-  const dom = new JSDOM(html, { runScripts: "outside-only", url: "http://localhost/" });
+  const dom = new JSDOM(html, { runScripts: "outside-only", url });
   const w = dom.window;
 
   Object.defineProperty(w, "innerWidth", { value: width, configurable: true });
@@ -390,8 +390,9 @@ test("closing: releases the camera, restores labels and zoom, stops audio", asyn
 
 test("rotation: turns about the poles only when zoomed out and idle", async () => {
   const env = await booted();
+  env.w.__ds.scene.unlatch();                    // arrival latches onto today's satellite; free the globe
   env.map.zoom = 2;
-  env.run(100);
+  env.run(4100);
   const c0 = { ...env.map.c };
   env.run(1000);
   assert.ok(env.map.c.lng < c0.lng, "drifts west as the Earth turns east");
@@ -411,33 +412,60 @@ test("rotation: turns about the poles only when zoomed out and idle", async () =
   env.w.close();
 });
 
-test("waiting card: appears on its own, previews the catalogue line, opens like a label click, silently", async () => {
+test("arrival: latches onto today's satellite from afar, label showing, nothing opens", async () => {
   const env = await booted();
-  assert.equal(env.$("info-panel").classList.contains("visible"), false, "not at once");
-  await new Promise(r => setTimeout(r, 1300));
-  const panel = env.$("info-panel");
-  assert.ok(panel.classList.contains("visible") && panel.classList.contains("idle"));
-  const name = env.$("panel-sat-name").textContent;
-  assert.ok(["ISS", "Hubble Space Telescope", "Terra"].includes(name), "picks an available satellite: " + name);
-  assert.equal(env.map.flyCalls.length, 0, "arriving costs nothing");
+  const scene = env.w.__ds.scene;
+  const id = scene.latchedId;
+  assert.ok(["iss", "hubble", "terra"].includes(id), "today's pick is an available satellite: " + id);
+  assert.equal(env.$("info-panel").classList.contains("visible"), false, "no panel, no card");
+  assert.equal(env.map.flyCalls.length, 0, "no fly-in: it stays at the whole-globe zoom");
+  const label = env.labels().find(l => l.classList.contains("latched"));
+  assert.ok(label, "the latched label is marked");
+  assert.notEqual(label.style.visibility, "hidden", "and stays visible");
 
-  panel.click();
-  await env.wait(5);
-  const label = env.labels().find(l => l.textContent === name);
-  assert.ok(label.classList.contains("tracked"), "its label hides, like a label click");
-  assert.equal(env.map.flyCalls.length, 1, "and it flies there");
-  assert.ok(!panel.classList.contains("idle"));
-  assert.equal(env.audios.length, 0, "opening is silent");
+  env.run(2000);                                   // the opening glide
+  const head = scene.headOf(id);
+  assert.ok(Math.abs(env.map.c.lat - head.lat) < 0.5, "centred on the satellite");
+  const lng0 = env.map.c.lng;
+  env.run(1000);
+  assert.notEqual(env.map.c.lng, lng0, "and the Earth moves beneath it at once");
+  assert.ok(Math.abs(env.map.c.lat - scene.headOf(id).lat) < 0.5, "still following");
   env.w.close();
 });
 
-test("waiting card: pressing play opens it and starts the voice", async () => {
+test("arrival: dragging lets go; tapping the latched label opens it like any other", async () => {
   const env = await booted();
-  await new Promise(r => setTimeout(r, 1300));
-  env.$("ctrl-listen").click();
+  const scene = env.w.__ds.scene;
+  env.map.fire("dragstart");
+  env.map.fire("dragend");
+  assert.equal(scene.latchedId, null);
+  assert.equal(scene.cameraMode, "free");
+  env.w.close();
+
+  const env2 = await booted();
+  const s2 = env2.w.__ds.scene;
+  const id0 = s2.latchedId;
+  const label = env2.labels().find(l => l.classList.contains("latched"));
+  label.click();
+  await env2.wait(5);
+  assert.equal(s2.latchedId, null);
+  assert.equal(s2.trackedId, id0, "the panel opens on today's satellite");
+  assert.ok(label.classList.contains("tracked"), "label hides, it flies in");
+  assert.equal(env2.map.flyCalls.length, 1);
+  assert.ok(env2.$("info-panel").classList.contains("visible"));
+  assert.equal(env2.audios.length, 0, "opening is silent");
+
+  env2.$("ctrl-close").click();
+  assert.equal(s2.trackedId, null);
+  assert.equal(s2.cameraMode, "free", "closed: free to zoom and roam");
+  env2.w.close();
+});
+
+test("arrival: a shared link opens its entry and never latches", async () => {
+  const env = await booted({ url: "http://localhost/s/terra" });
   await env.wait(5);
-  assert.equal(env.audios.length, 1);
-  assert.equal(env.$("ctrl-listen").dataset.state, "playing");
+  assert.equal(env.w.__ds.scene.latchedId, null);
+  assert.equal(env.w.__ds.scene.trackedId, "terra");
   env.w.close();
 });
 

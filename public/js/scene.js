@@ -15,15 +15,23 @@
  *    propagated this frame, through one projector. Map, trails, dot and
  *    labels are therefore always from the same frame and the same maths.
  */
+// The opening view: the whole globe, far enough out to leave room for the
+// labels around it. Mapbox's globe is about 512 * 2^zoom / pi pixels across,
+// so this solves for a globe about two thirds of the shorter screen side.
+function homeZoom(w = window.innerWidth, h = window.innerHeight) {
+  const d = Math.min(w, h) * 0.68;
+  return Math.max(0.5, Math.min(2.2, Math.log2((Math.PI * d) / 512)));
+}
+
 function createScene(map, projector) {
   const canvas = document.getElementById("sat-canvas");
   const ctx = canvas.getContext("2d");
   const labelLayer = document.getElementById("sat-labels");
 
   const FLY_MS = 2800;
-  const HOME_ZOOM = 1.8;      // the whole-globe view the page opens with
   const HOME_MS = 2000;
   const RECOVER_MS = 650;
+  const LATCH_MS = 1800;      // the first glide onto today's satellite
   const ROTATE_DEG_PER_SEC = (360 / 86164) * 6;   // 6x sidereal
   const ROTATE_MAX_ZOOM = 3.5;
   const RESUME_MS = 4000;
@@ -32,7 +40,8 @@ function createScene(map, projector) {
 
   let sats = [];            // [{ meta, satrec, trail, head, el, w, h, anchor }]
   let byId = new Map();
-  let trackedId = null;
+  let trackedId = null;     // open in the panel: flown in close, label hidden
+  let latchedId = null;     // today's satellite on arrival: followed from afar, label shown
   let priorityId = null;    // today's satellite gets first claim on label space
   let selectHandler = () => {};
 
@@ -41,6 +50,7 @@ function createScene(map, projector) {
     dragging: false,
     recoverFrom: null,
     recoverStart: 0,
+    recoverMs: 650,
     lastInteraction: -Infinity,   // spin from the moment the page opens
     lastTick: 0,
     wasEasing: false,
@@ -113,6 +123,7 @@ function createScene(map, projector) {
 
   map.on("dragstart", () => {
     cam.dragging = true;
+    if (latchedId && !trackedId) unlatch();   // a drag means the reader wants to look elsewhere
     noteInteraction();
     if (cam.mode !== "free") cam.mode = "held";
   });
@@ -126,10 +137,11 @@ function createScene(map, projector) {
     map.on(ev, noteInteraction);
   }
 
-  function startRecover() {
+  function startRecover(ms = RECOVER_MS) {
     const c = map.getCenter();
     cam.recoverFrom = { lon: c.lng, lat: c.lat };
     cam.recoverStart = performance.now();
+    cam.recoverMs = ms;
     cam.mode = "recovering";
   }
 
@@ -137,7 +149,11 @@ function createScene(map, projector) {
     const s = byId.get(id);
     if (!s) return;
     trackedId = id;
-    for (const o of sats) o.el.classList.toggle("tracked", o.meta.id === id);
+    latchedId = null;
+    for (const o of sats) {
+      o.el.classList.toggle("tracked", o.meta.id === id);
+      o.el.classList.remove("latched");
+    }
     anchorZoomToCentre(true);
 
     // Aim where the satellite will be when the flight lands, not where it is now.
@@ -155,6 +171,30 @@ function createScene(map, projector) {
     });
   }
 
+  // Follow a satellite without flying in: the camera stays at the current
+  // zoom (the whole globe on arrival), the satellite sits at the centre of
+  // the screen and its label stays visible, so the Earth turns beneath it
+  // from the first second. Pinch and wheel still zoom, about the centre.
+  function latch(id) {
+    const s = byId.get(id);
+    if (!s) return;
+    latchedId = id;
+    for (const o of sats) o.el.classList.toggle("latched", o.meta.id === id);
+    anchorZoomToCentre(true);
+    startRecover(LATCH_MS);
+  }
+
+  function unlatch() {
+    if (!latchedId) return;
+    latchedId = null;
+    for (const o of sats) o.el.classList.remove("latched");
+    if (!trackedId) {
+      cam.mode = "free";
+      anchorZoomToCentre(false);
+      noteInteraction();
+    }
+  }
+
   // Let go of the satellite. With home: true the camera also eases back out
   // to the whole globe (unless the reader is already zoomed out), so the label
   // carries on its journey in view instead of leaving a close-up behind.
@@ -164,13 +204,15 @@ function createScene(map, projector) {
     for (const o of sats) o.el.classList.remove("tracked");
     anchorZoomToCentre(false);
     noteInteraction();              // rotation resumes after the usual pause
-    if (home && map.getZoom() > HOME_ZOOM + 1) {
-      map.flyTo({ zoom: HOME_ZOOM, pitch: 0, duration: HOME_MS, easing: easeInOut, essential: true });
+    const homeZ = homeZoom();
+    if (home && map.getZoom() > homeZ + 1) {
+      map.flyTo({ zoom: homeZ, pitch: 0, duration: HOME_MS, easing: easeInOut, essential: true });
     }
   }
 
   function updateCamera(now, dt) {
-    const s = trackedId ? byId.get(trackedId) : null;
+    const followId = trackedId || latchedId;
+    const s = followId ? byId.get(followId) : null;
 
     if (cam.mode === "free") {
       const idle = now - cam.lastInteraction > RESUME_MS;
@@ -191,7 +233,7 @@ function createScene(map, projector) {
     }
 
     if (cam.mode === "recovering") {
-      const t = Math.min(1, (now - cam.recoverStart) / RECOVER_MS);
+      const t = Math.min(1, (now - cam.recoverStart) / cam.recoverMs);
       const p = Orbit.slerpLngLat(cam.recoverFrom.lon, cam.recoverFrom.lat, s.head.lon, s.head.lat, easeInOut(t));
       setCenterDirect(p.lon, p.lat);
       if (t >= 1) cam.mode = "locked";
@@ -339,7 +381,7 @@ function createScene(map, projector) {
     ctx.lineCap = "round";
     for (const s of sats) drawTrail(s, nowMs, W, H);
 
-    if (trackedId) drawDot(byId.get(trackedId));
+    if (trackedId || latchedId) drawDot(byId.get(trackedId || latchedId));
     layoutLabels(W, H);
   }
 
@@ -350,11 +392,14 @@ function createScene(map, projector) {
     start() { requestAnimationFrame(tick); },
     track,
     release,
+    latch,
+    unlatch,
     onSelect(fn) { selectHandler = fn; },
     setPriority(id) { priorityId = id; },
     headOf(id) { const s = byId.get(id); return s ? s.head : null; },
     satrecOf(id) { const s = byId.get(id); return s ? s.satrec : null; },
     get trackedId() { return trackedId; },
+    get latchedId() { return latchedId; },
     get cameraMode() { return cam.mode; },
   };
 }
