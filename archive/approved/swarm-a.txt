@@ -1,0 +1,35 @@
+Begin at the end of a pole.
+
+It is four metres long, and it trails out behind the satellite. For launch it was folded away. Once the thing reached orbit, it swung out and locked. At the very tip sits an instrument that uses light and helium to find out how strong the Earth's magnetic field is. Strength only. It reports a number and has no opinion about direction, which is a lovely quality in a colleague.
+
+It sits there because the rest of the satellite is the problem. Electronics carry current, current makes magnetism of its own, and that is exactly the thing you are trying to measure. So you put the instrument as far from the machine as the machine allows.
+
+Halfway along the pole is a second instrument, and this one does give directions. The one at the tip checks its work: a ruler auditing another ruler. Beside it sit three star trackers, because a compass reading is no use unless you know which way the compass is facing.
+
+Back at the body, the engineers tested nearly every part for magnetism before it went in. The design, as ESA described it before launch, even left out reaction wheels, because of their magnetic effects and their vibration. A spacecraft whose main ambition is to be as little there as possible. I can't manage that in a room, never mind in orbit.
+
+This is Swarm A, which ESA calls Alpha. There are three of them, Alpha, Bravo and Charlie, and they went up together on one rocket on 22 November 2013. ESA says that on the upper stage they sat as close as eight centimetres apart. Afterwards, Charlie flew beside Alpha, and Bravo flew higher, on its own. In 2018 a Canadian instrument called Echo joined them, so it is a swarm of three with a guest.
+
+The plan in 2004 said launch in 2009. They launched in 2013. The field they measure changes over decades, and the schedule still managed to change faster.
+
+Then the sky became the problem. On 30 June 2022, a piece of debris was spotted heading for Alpha, with a collision predicted about eight hours later, shortly after midnight. ESA says a warning normally comes more than a day ahead. The teams planned and flew the avoidance in about four hours. ESA's account never says what the thing was. It was there, and then it was somebody else's problem.
+
+Alpha was busy anyway. The Sun was in a livelier phase, the upper atmosphere had swollen, and the extra drag was pulling Alpha and Charlie down. Both needed twenty-five manoeuvres over ten weeks to climb out of it. Without a climb, ESA says, they would have come down in 2024.
+
+So: a machine built to measure something invisible, kept in the sky by fighting something nearly invisible.
+
+Now, what it measures. Over the last two hundred years the field has lost about nine per cent of its strength, on a global average, according to ESA. Over the South Atlantic, the weakest point fell from about 24,000 nanotesla in 1970 to about 22,000 in 2020. I don't know what a nanotesla feels like. I have never knowingly felt one. I'm told the number is going down, and I've noticed nothing, and I doubt I would notice if it were put back.
+
+The north pole is less discreet. Sir James Clark Ross found it in northern Canada in 1831. From 1600 to 1990 it moved about ten kilometres a year. In the 2000s it sped up. Over the five years to the start of 2025 it slowed to about thirty-five, still heading for Siberia, and a geophysicist at the British Geological Survey said this behaviour was something nobody had observed before.
+
+You know the car park. Level four, or was it five, and you open the compass app on your phone, for reasons you could not defend in court. The needle swings about, settles, and points with great confidence. You don't need north. You have never needed north. You need a grey hatchback. But you set off the way it points, walking with purpose, because there are people about, and a person who is lost walks slowly.
+
+The needle isn't lying. It's answering a different question.
+
+Phone makers use a model of the field for their compass apps, NOAA says, and the model is renewed at least every five years, because the field will not hold still.
+
+That is the entire response to a moving north: a new edition of the map.
+
+I did look for a recent word on Alpha by itself, and I couldn't find one. What I found is wider. ESA wrote in October 2025 that it hopes to extend the record beyond 2030, and a conference abstract updated in March 2026 says the three keep delivering.
+
+Back at the tip of the pole sits the instrument that knows what it knows by staying as far from itself as it can. I recognise the method. I just don't have the boom.

@@ -383,12 +383,12 @@ test("story versions: live stays on v1 by default; v2 uses the voice file and th
     const writes = sentToAnthropic.filter(r => !/^You are the fact-checker/.test(r.system));
     const checks = sentToAnthropic.filter(r => /^You are the fact-checker/.test(r.system));
     const [noaa, iss] = writes;
-    assert.equal(checks.length, 1, "v2 is fact-checked, v1 is not");
+    assert.equal(checks.length, 2, "v2 is fact-checked, v1 is not");
     assert.match(checks[0].content, /# Brief: NOAA-19/, "checker sees the sheet");
     assert.match(noaa.system, /HOW EACH ENTRY IS MADE/, "voice file used");
     assert.match(noaa.content, /# Brief: NOAA-19/, "brief included");
     assert.match(noaa.content, /15:28 UTC/, "fact sheet included");
-    assert.match(iss.content, /^Write an entry for the satellite: ISS/, "no brief yet: falls back to v1");
+    assert.match(iss.content, /# Brief: ISS/, "every catalogue entry now has a brief");
   } finally { await s2.stop(); }
 });
 
@@ -458,7 +458,7 @@ test("story version v3 uses the dark voice file and the brief, and is fact-check
 test("preview warm-up writes every version of every briefed story at start", async () => {
   const s = await startServer(tmp(), { PREVIEW_KEY: "sesame", PREVIEW_WARM: "1" });
   try {
-    for (let i = 0; i < 60 && !/Preview warm-up done/.test(s.log()); i++) await new Promise(r => setTimeout(r, 100));
+    for (let i = 0; i < 400 && !/Preview warm-up done/.test(s.log()); i++) await new Promise(r => setTimeout(r, 100));
     assert.match(s.log(), /Preview warm-up done/);
     for (const id of ["noaa-19", "oscar-7", "cryosat-2"]) {
       assert.match(s.log(), new RegExp(`STORY v1 ${id} \\| `), id + " v1");

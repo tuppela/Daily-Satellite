@@ -1,0 +1,39 @@
+Half past one in the afternoon. That was the appointment.
+
+Every day, local time, heading north across the equator, the satellite was supposed to be there. Not noon, not two. Half past one, or at worst a quarter of an hour after, and from 2002 until 2021 it was.
+
+It was first called EOS PM, after the time of day. Then it got a proper name, Aqua, which is Latin for water, and which makes it sound as though it had been about something all along. It went up from Vandenberg on a Delta II, on 4 May 2002, at five to three in the morning, Pacific time. To be an afternoon satellite.
+
+The water in the name is the job: evaporation, clouds, snow, sea ice, the vapour in the air. Of its six instruments, the one I'd like you to hold on to is AIRS, an infrared sounder.
+
+AIRS looks down and collects the infrared energy coming up from the Earth. Inside, that energy is split into its separate wavelengths, a bit like raindrops splitting sunlight, except that these colours are ones you can't see. It has 2,378 detectors, each tuned to one wavelength, and each wavelength responds to the temperature and the water vapour across its own range of heights. So you don't get a single picture of the air. You get a tall building, each wavelength reporting from its own set of floors. Add the floors up and you have a temperature profile of the atmosphere, which NASA has said is comparable in accuracy to a weather balloon.
+
+It has a weakness, and that is thick cloud, which blocks the infrared. Which is the one thing you most want a weather instrument to see through.
+
+Its data are meant to feed the models that make the forecast. NASA has said it improves them.
+
+And you will check that forecast. Rain from four o'clock. So you take the coat. It doesn't rain. You carry the coat around all day like a witness to your own gullibility, and you resent the forecast. Next time it says dry, you leave the coat at home, it rains, and now you resent it more. There is no outcome in which you come home grateful. A correct forecast is invisible, and a wrong one is personal.
+
+I'd like to tell you I would be thankful if they got it right every time. I suspect I would feel nothing, and then notice, and be annoyed about that.
+
+Anyway. Half past one.
+
+The orbit was kept on schedule by small burns that made up for drag. The last of them was in December 2021, because the fuel was limited. Since then Aqua has been in what NASA calls free drift. It sinks slowly, and the crossing time slides later. By early 2022 it had left the formation of satellites it was the first into, which is called the A-Train. The one named for the afternoon is the one that missed the train.
+
+The latest time that NASA considered useful for the science was a quarter to two. Aqua went past that in February 2023. The last prediction I can find, from last year, had it crossing at about half past three by July 2026. Two hours late for its own appointment.
+
+I find I'm on its side. I have never admired anything for staying on schedule as much as I admire this for finally not.
+
+The rest of it is tired in smaller ways. Four of the six instruments still give good data, NASA says. The one called the Humidity Sounder for Brazil managed about nine months before it failed in February 2003. Another, AMSR-E, had a major fault in October 2011 and was switched off in March 2016. By August 2025, thirty-three of its 132 solar array strings had failed, and NASA's status slide still rated the spacecraft bus as being in excellent health.
+
+A door on the MODIS instrument has moved more than four thousand times, against a design limit of three thousand and twenty-two. So they have reduced how often they use it. That is the engineering version of being told to sit down.
+
+It was designed for six years. On 4 May 2026 NASA marked its twenty-fourth year of collecting data, more than one hundred and twenty-six thousand orbits, and more than thirty thousand publications supported.
+
+Nobody applauds a thing for arriving when it said it would. The applause, if there is any, is for the day it stops.
+
+So is it still up there? NASA's mission page, last updated on 5 October 2026, lists it as an active mission. A projection from last year, which depended on funding, had the instruments switched off this summer and the spacecraft made safe afterwards. I could not find a source that says whether that has happened.
+
+I can't give you today's answer. I can tell you which way it's drifting, because that only goes one way.
+
+Half past one was the appointment. It kept it from 2002 until 2021. I think it has earned being late.

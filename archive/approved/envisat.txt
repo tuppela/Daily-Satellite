@@ -1,0 +1,47 @@
+On 8 April 2012, a satellite flew over a ground station at Kiruna, in Sweden, and the people there waited for it to say something.
+
+It didn't.
+
+That was weeks after it had celebrated ten years in orbit. It had been designed to work for five. When ESA declared the mission over, a month later, it said the satellite had already run for double its planned lifetime and was well overdue for retirement. I'd have said "a good run". We work in different departments.
+
+Envisat weighed about eight tonnes, and ESA calls it the largest civilian Earth observation mission ever launched. With its solar array out it measured some twenty-six metres by ten by five. It carried ten instruments, and I'm only going to describe one, because it's the one I can't stop thinking about.
+
+It was called GOMOS, and it watched stars set.
+
+From the satellite's point of view, a star slides down toward the edge of the atmosphere and goes behind it. On the way, its light has to pass through more and more air, and the air takes out certain colours. Every gas takes out its own. So you don't measure what's there, you measure what's missing: a barcode of absent colours, and the barcode says ozone. ESA said in 2007 that it was following about four hundred stars a day.
+
+Others looked at ocean colour, sea temperature and radar echoes. About two and a half thousand scientific papers have used the data, including work on the retreat of the Arctic sea ice.
+
+Then, nothing.
+
+For about a month, engineers sent commands from a widespread network of ground stations. No reply. The French space agency turned one of its own satellites toward it and took pictures, and the pictures showed its solar array properly deployed.
+
+It looked fine.
+
+I find that worse than a wreck. A wreck is an explanation. A healthy satellite that won't answer is somebody looking at you across a room. I can't defend that reaction, but I'm telling you I have it.
+
+ESA named two suspects: a failed power regulator, or a short circuit followed by a second fault. I can't find that anyone confirmed which.
+
+Here is the part that matters. Lowering it to an orbit where it would come down by itself, ESA wrote later, was never an option, because of its design and its limited fuel. Even straight after launch, there wouldn't have been enough. It was planned and designed between 1987 and 1990. ESA says deorbiting is now considered when satellites are designed.
+
+Now.
+
+A house has a cellar, and in the cellar there's a big old machine, a boiler or a freezer, from before the previous owner and the one before that. It is plainly bigger than the door. So you stand there with a tape measure. You measure the machine, you measure the door, and then, because you are a hopeful person, you measure the door again, as if it might have changed its mind. In the end you stop calling it a problem. You put some jars on top of it. It becomes a shelf.
+
+Envisat is the machine in the cellar.
+
+ESA did study getting it out. In 2013 it asked for a study of a mission called e.Deorbit, aimed at catching Envisat and bringing it down in a controlled way. In 2016 the launch was still pencilled in for 2021. In November 2018 ESA wrote that it had abandoned pushing for that specific mission, because the funding had not been provided. A statement reported in January 2019 put it plainly: money to develop the technologies, not to remove a defunct satellite.
+
+So, for a while, the money existed to work out how to remove it, and not to remove it. I admit I find that restful. A thing you have studied feels very nearly like a thing you have dealt with.
+
+Meanwhile, the full-size model of Envisat that stood outside the visitor centre at ESA's technical centre had to be taken apart. It had been there since 1999, and years of North Sea wind meant it came down before it could become a danger to the public. ESA published the pictures in January 2016: a cherry picker, cutting torches.
+
+As far as I know, that is the only Envisat anyone has managed to bring down.
+
+We build things for the years we expect to be there, and leave the rest to whoever turns up.
+
+The catalogue says Envisat is still orbiting, and two trackers using orbital elements from October 2026 agree, at roughly seven hundred and sixty kilometres up. In 2010, debris experts said that, given its orbit and its size, it could take about a hundred and fifty years to come down. That was an estimate from a conference, not a date, and I'm not going to turn it into one.
+
+Five years planned. Ten worked. The rest is an estimate.
+
+Well overdue for retirement, ESA said. It has retired. It just hasn't left.

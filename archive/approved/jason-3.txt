@@ -1,0 +1,33 @@
+On 7 April 2022, a satellite called Sentinel-6 Michael Freilich took over from Jason-3 as the reference for the height of the sea.
+
+In an office, that would be a card and a cake in the kitchen. I can find no record of a cake.
+
+A reference mission is the one the others are checked against. Sentinel-6 Michael Freilich was the fifth, after TOPEX/Poseidon, Jason-1, Jason-2 and Jason-3. For the handover it flew about thirty seconds behind Jason-3, measuring the same stretch of water, while its altimeters were calibrated against the older one.
+
+That is a very ordinary way to replace someone. You sit close behind them, you copy everything, and you are checked against them until you agree. The person being replaced is expected to be helpful about it.
+
+So here is what was being checked. Jason-3 flew 1,336 kilometres above the sea and sent radar pulses straight down, more than seventeen hundred every second, and timed each echo. Radio travels at the speed of light, so a time is a distance. Picture a stopwatch so fine that it can tell the sea is two centimetres nearer than before, by noticing that an echo, which has gone down 1,336 kilometres and come all the way back, arrived very slightly late.
+
+That is half the job. The air slows the signal, with water vapour and with the charged layer high above, and all of that has to be corrected. The other half is knowing where the satellite is, to within three centimetres, which it works out from beacons on the ground, listening to how the pitch of their signals shifts as it passes. Take where you are, subtract the distance to the water, and what is left is the height of the sea. Two enormous numbers, and the answer is the small difference between them.
+
+The sea is not level, either. A dense zone of rock on the seabed can shift the surface by tens of metres, because the water is drawn towards the weight. There are mountains down there, and the sea knows about them.
+
+Now the dark part. In 2024 the sea was rising at 0.59 centimetres a year, faster than the 0.43 that had been expected. That is the whole news: half a centimetre, and a bit. No single echo can see it. You need years of them.
+
+You stand a child against a door frame, heels to the wood, a flat book on the head, and you draw a line and write the date beside it. The child cheats. They always rise onto their toes, and you say flat feet, and they come down, and you let them keep a little of it. No one line means anything. But after some years the lines climb the wood in a way nobody saw happening, least of all the people living with it, and then a visitor says, look at you. It takes a stranger or a pencil. And one day you move house, and the new owners paint the frame, and the whole record goes under white.
+
+A satellite has no door frame.
+
+It measures from something travelling at 7.2 kilometres a second, so the frame has to be built from beacons and arithmetic, and rebuilt every second.
+
+I would like to say the sea moves me the way those pencil lines would. It doesn't. Six millimetres a year I read, I nod, and I carry on with my day.
+
+Which is why the handover could be so calm. The record is the thing. The satellites are the pencil, and nobody keeps the pencil.
+
+Do the job properly, and nobody notices you being replaced. That is what properly means.
+
+Jason-3 was not switched off. In June 2025 it was moved to a long repeat orbit, and a document from 2023 listed, as a baseline for discussion, an orbit about twenty-seven kilometres lower, for the study of the shape of the Earth. In November 2025, NASA said it remained active. A report issued on 31 July 2026 says it is performing well, with no major anomaly in 2025, and that another orbit change was beginning that June.
+
+So it has gone from being the ruler to a quieter job, in a different orbit. I cannot tell you whether it is up there this morning. The latest source I have is from July.
+
+The pencil has changed hands. The marks are still climbing the wood. Nobody has painted over them.

@@ -1,0 +1,31 @@
+On 17 April 2011, CloudSat's battery tripped its first low-voltage fault. Within twenty-four hours it had tripped all the others, and the satellite went into emergency mode.
+
+A few days earlier it had been giving the spacecraft a certain amount of energy. Now it could give about a tenth of that.
+
+The first sign had come in late 2009, a soft short in one cell, and there was still enough capacity to keep the science going. So it kept going. That is what a sensible person does with a small fault. It is also what a sensible person does right up to the day the fault stops being small. I would have done exactly the same, and I would have been exactly as surprised.
+
+What the battery was keeping alive was a radar. One instrument, pointed straight down. It sends a pulse of radio waves at the clouds, a pulse lasting 3.3 millionths of a second, and then it listens. In that time a radio wave travels about a kilometre, down and back, which is why the echoes are sorted into layers five hundred metres deep. Echoes from lower down arrive later, so time becomes depth. The strength of the echo says how much water or ice is there. Drag that along the sky and you read a cloud from top to bottom, one column at a time, the way a scanner goes over a barcode.
+
+NASA calls it a thousand times more sensitive than the weather radars on the ground. It could see the cloud before the cloud had made up its mind.
+
+You know what it is to lie on your back in a field and look at clouds. Somebody beside you says, that one's a rabbit. You can't see it. You tilt your head. You see a cloud, and you feel slightly stupid, and then it clicks, and it is a rabbit, and it stays a rabbit, and for the rest of the afternoon every cloud is something. Looking up is for outlines. It is how we turn the sky into a family.
+
+CloudSat looked down, through the middle of things, and what it got was a slice. No outline. Only what was in the column.
+
+CloudSat was not interested in the rabbit. It wanted to know how often clouds produce rain and snow across the world, and how they heat and cool the atmosphere.
+
+For most of its life it did this in company, in a line of Earth-observing satellites called the A-Train, all crossing the equator within minutes of one another. One description, written before the battery trouble, puts CloudSat 12.5 seconds ahead of CALIPSO, give or take two and a half, so that the radar and the lidar's laser looked at the same piece of sky.
+
+The battery was not only CloudSat's problem. It could no longer stay inside its assigned box, and it was drifting towards Aqua, another satellite in the line. The people who did the recovery wrote that it had to leave, and that any manoeuvre was risky with so little power. The first attempts failed. Then they got a sequence into the spacecraft in a single ten-minute contact: orbit lowered, safe mode, all within one sunlit stretch of 65 minutes.
+
+What they came up with, in the end, was a working day. Each orbit gives about sixty-five minutes of sunlight and thirty-four of shade. When the satellite enters the shadow, the radar and most of the rest are switched off and it hibernates. When it comes out, things come back on in order. The radar never needed the daylight. It brings its own signal. It was the battery that could not be asked to carry the whole load through the dark.
+
+NASA declared it fully operational that November. It had been planned as a twenty-two month mission.
+
+I think most of us, offered a choice between stopping and working short days on a failing battery, would take the short days. I would take them gladly, and I would call it commitment.
+
+In February 2018 there was more trouble. NASA calls it a mechanical challenge and says no more. On 22 February CloudSat left the A-Train, lowering its orbit by 10.5 kilometres. In September CALIPSO followed, and the pair became a new train. NASA's scientists named it the C-Train, after the first letter of each satellite. The A-Train had been named for other satellites' initials. When these two left, they named a train after themselves, and I find that the most human thing in the story.
+
+The radar was switched off for the last time in December 2023. BAE Systems says the engineers drained what energy was left and moved the solar arrays so that it cannot wake up again. In March 2024 it was lowered into an orbit that NASA says will end with its disintegration in the atmosphere. I could not find a source saying when, or that it has happened, so I won't tell you that it has.
+
+It spent almost eighteen years looking straight down. Its orbit now leads the same way.

@@ -1,0 +1,37 @@
+Start with the sea. It is glowing.
+
+Not in any way you could see. The ring on an electric stove glows red because it is hot, and everything warm glows somehow, it is just that most of it is in light our eyes ignore. The sea glows in microwaves. And salty water, other things being equal, looks very slightly cooler to a radiometer than fresh water does.
+
+That is the whole idea behind Aquarius. Read the glow, get the salt.
+
+The trouble is the word slightly. Across the open ocean, salinity runs from about 32 to 37 parts per thousand, and the instrument had to notice a change of about two parts in ten thousand. In the glow, that comes to about a tenth of a kelvin. NASA described the accuracy it was after, 0.2 practical salinity units on monthly maps, as a pinch of salt in a gallon of water.
+
+A pinch, in a gallon, from space.
+
+One of the mission's scientists, David Le Vine, put it like this: "It is a very tiny signal in a noisy environment." I would say the same about most of my opinions.
+
+So the work is subtraction. Another scientist, Frank Wentz, called it "basically a big subtraction process." Take the glow, and take away the land, the atmosphere, the sunlight. Take away us: communications and air traffic radar, leaking into a slice of the spectrum that is supposed to be kept for radio astronomy. The instrument took a fresh sample every ten microseconds, partly to catch our interference and throw it out.
+
+Then there are the waves. The roughness of the sea was the largest source of error, and Wentz compared it to a funhouse mirror that distorts everything. A prototype flew on an aircraft in 2003, and the results showed roughness dominating the salt signal, so the team went back and added a radar. It pulses the same patch of sea and listens to what comes back. Rougher water scatters more. That tells you how crooked the mirror is, and you subtract that too.
+
+You do this yourself. You taste the soup. You have a spoon, a mouth and no calibration of any kind. You pause, you look into the middle distance, and you announce that it needs salt. Nothing has been subtracted. Not how tired you are, not what you ate earlier, not that the spoon was hot. You are completely certain. Then you add salt, taste again, and announce, with exactly the same face, that it is right.
+
+Aquarius did it with a dish two and a half metres wide.
+
+Three radiometers shared that dish, and together they watched a strip of sea 390 kilometres wide. The finest detail in the maps was about 150 kilometres across, and the instrument only sensed about the top centimetre of the water. Whatever the sea was doing underneath, it kept to itself.
+
+Before that, the saltiness of the sea came from ships, buoys and floats, which a NASA article called still few and far between. An attempt from space on Skylab in 1973 used the same frequency band, and a European mission to measure ocean salinity had launched in 2009. So Aquarius was not the first. Its team described its first-light image as the first sea-surface salinity data ever collected by NASA. That is a first, with the footnote built in.
+
+It began its measurements on 25 August 2011, and within weeks there was a global map with more detail than anyone had expected. The fresh water of the Amazon spread over a larger area than predicted. The Arabian Sea sat salty next to a Bay of Bengal freshened by the Ganges and the monsoon. The project manager said that when the thing first chirped, they posted the data on the web, and there was no time for champagne.
+
+I believe that. I would have found the time.
+
+It finished its main three-year job in November 2014, and kept going. Then, in June 2015, a key part of the power and attitude control system stopped working. NASA's preliminary word was that a Remote Terminal Unit had shut down. The spacecraft lost its power regulation and its ability to hold itself steady. It had collected about three years and nine months of data.
+
+Most things end like that. One unit stops, and the rest follows.
+
+A very tiny signal in a noisy environment. Then, in June 2015, nothing, which is much easier to read.
+
+The trackers I checked still list it in orbit, with orbit data from late October 2026. Nobody is operating it. It goes round above the sea it was built to taste, subtracting nothing.
+
+Down below, the sea goes on glowing, a little dimmer where it is saltier, and nobody up there is reading it.

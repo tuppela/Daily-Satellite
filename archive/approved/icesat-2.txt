@@ -1,0 +1,41 @@
+About twelve.
+
+That is how many photons come back. Every time the laser fires, trillions of them leave the satellite, and NASA says about a dozen find their way home to the telescope.
+
+It fires ten thousand times a second.
+
+I would like to say I admire the persistence. What I actually feel is that I would have given up by the third pulse.
+
+Here is what the dozen are for. When a pulse leaves, a clock starts. It is something like a stopwatch, built for the job, because the engineers could not find a timer good enough. When a returning photon gets through a filter that admits only the laser's own shade of green, it trips a detector and stops the stopwatch. The journey, there and back, takes a little over three thousandths of a second, and the clock reads it to within nearly a billionth of a second. The speed of light is known. So the time becomes a distance, and the distance becomes a height.
+
+That is the whole instrument. A stopwatch that a single photon is allowed to stop.
+
+The filter matters because the sun is full of that green too, and left alone it would swamp the detector. Even with the filter, what gets sent down to the ground is a scatter of thousands of dots, most of them sunlight and dust and cloud. The surface is wherever the stronger signals gather out of the noise.
+
+You have done this with a coat you haven't worn since last winter. Coins in one pocket, a button, a receipt gone soft. You tip it onto the table and count the coins one at a time, and the first total is always wrong, because the small ones hide under the big ones. So you count again. And a number arrives, some small amount, and you feel richer than it deserves, because every coin was real and you touched each one.
+
+Twelve, then.
+
+And twelve is the good day. The laser light is split into six beams, in three pairs, so the slope of the ground can be worked out, and in each pair one beam is stronger. For the stronger ones, the design target is twelve, over clean snow under a clear sky. That is the best weather a laser could ask for.
+
+Its predecessor had one beam and fired forty times a second. That one lost its first laser after about thirty-six days, and measurements stopped for several months while engineers worked out why. This one carries a second laser in reserve.
+
+It did not arrive neatly. In 2014 a government report found that the analysis of the laser sensor was insufficient, and the requirements, it turned out, had been too stringent, so managers relaxed the sensor's operating constraints. If the thing will not meet the standard, lower the standard. It is a technique with a long and honourable record, and I would like to say I disapprove.
+
+Then, in a test in 2016, a mounting inside one of the lasers turned out to be too tight, and a crystal cracked. Holding something too tightly until it breaks is not a mistake you need a laser for.
+
+The flight lasers were repaired and tested again. It launched on 15 September 2018, on the last Delta II rocket ever flown.
+
+In May 2024 the sun leaned on it. A solar storm swelled the upper atmosphere, the extra drag pulled the satellite about six kilometres lower, and the laser switched itself off to protect itself. Thrusters brought it back, and on 21 June it was measuring again.
+
+What it measures is height. NASA says it can detect a yearly change in the height of the Greenland and Antarctic ice sheets as small as four millimetres. One of the places it watches is Vanderford Glacier in East Antarctica, which a recent study calls that region's fastest-retreating. Between 2019 and 2022 the ice surface at one site there dropped about six feet. The next year it rose a few feet. Then in 2024 it dropped again.
+
+I wanted a straight line. I would have liked to tell you it went one way.
+
+Nearly everything you send out does not come back.
+
+The mission is built on that, and it works.
+
+In March 2025 NASA's instrument scientist said the laser was in excellent shape after a couple of trillion shots, and could last well into the 2030s. NASA's mission page, last updated in August 2026, lists it as an active mission.
+
+I said I would have given up by the third pulse. By March 2025 it had fired two trillion, and taken whatever came back, about a dozen at a time.

@@ -1,0 +1,39 @@
+Seven years. That was the plan.
+
+Sentinel-2A was built to work for at least seven years and then stop, in the usual way, with a card nobody has signed and a cake nobody wanted to be in charge of buying.
+
+It was also given batteries and fuel for twelve. I couldn't find anyone who says why. I'd like to think it was optimism. I suspect it was a spreadsheet.
+
+It started badly. In its first days after launch in June 2015 there was a sticky valve, a star tracker that needed attention and a problem with a GPS unit. All of it was sorted. A difficult start, then indispensable: the career path of most people who are still employed.
+
+Picture a broom being pushed along a floor. The broom is a row of light sensors lying across the satellite's path, and the strip of ground it sees at once is two hundred and ninety kilometres wide. The satellite moves, the row records a line, then the next line, and the picture is pulled out of the orbit one stripe at a time. Nothing sweeps. The flight does the work.
+
+Over the sensors sit stripes of filter, each letting through one band of light. Thirteen bands, some of them colours your eye was never issued. Plants, water and bare ground each answer differently to light you can't see. Because the stripes are spread out, each band meets the same patch of ground at a slightly different moment, up to about two point six seconds apart. At best, one pixel is ten metres across.
+
+In Finland, the Environment Institute, SYKE, uses Sentinel-2 pictures in a service called Tarkka to watch lakes for algae. It covers most lakes larger than a hectare, a square a hundred metres each way, which I suspect some Finns would call a pond. When a lake turns, the authorities can warn people through local newspapers and websites, so nobody has to find out with their feet.
+
+In September 2024 a replacement was launched. By 21 January 2025 it had taken over the work.
+
+That was the end, on paper. But before the replacement had even left the ground, users had started a petition asking that the old one be kept running for as long as possible. More than sixteen hundred people signed. Their argument was not sentiment, as far as I can read it. It was cloud. Clouds hide so much of the land that every extra look is another chance at a clear view, and three satellites look more often than two.
+
+Most of us are not kept for being loved. We are kept because someone did the sums, and the sums came out slightly in our favour.
+
+In February 2025 a director at the European Commission said that Sentinel-2A would not retire yet. Yet. I'm fond of that word and I don't trust it.
+
+So it was moved to a new place in its orbit, to complement the other two, and carried on. Coming back to the same ground, again and again, is the whole job.
+
+Every family has the photograph. The same wall, the same time of year, everyone in the same places, taken by whoever is nearest the camera. Nobody studies it at the time. Somebody says one more. Then, years later, the album is open on a table and someone flips the pages quickly, and the whole thing moves. The children climb the wall. A haircut arrives and leaves. And in one year somebody isn't there, and the rest stand a little apart, leaving the space, and the year after that they have closed it. Nobody decided that. Nobody mentioned it either.
+
+The satellite took that photograph of the ground.
+
+In December 2025 it was given a new task. Its imager needs sunlight bounced off the Earth, so over the night side it is normally switched off. Starting on 3 December, ESA switched it on in the dark. Gas flares in Iraq, fishing boats off South Korea, a fire in India: all of them came out. The mission manager said it took a great deal of energy, but that Sentinel-2A did very well.
+
+I find this the most moving thing in the whole file, which is absurd, it is a camera. A machine built for daylight, at the end of its career, asked to work nights. Anyone who has been told they did very well at something they were not built for knows which half of that sentence to worry about.
+
+And the purpose, ESA says, was to prepare the next generation of the mission. The old one is writing the job description of the one that comes after.
+
+The latest notice I can find, from May 2026, says its extension runs to the end of this year. I can't tell you what comes after.
+
+But some of that fuel was set aside for the manoeuvres that take it out of the way when it is finished. It has carried the fuel for its own retirement since 2015, and nobody has asked it to use it.
+
+Not yet.

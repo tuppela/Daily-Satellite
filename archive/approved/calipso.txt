@@ -1,0 +1,37 @@
+About twenty times every second, CALIPSO sent a flash of laser light straight down at the Earth. Then it waited to see what came back.
+
+That was the whole job. A flash, a clock, and a telescope one metre across.
+
+You have done this yourself. You walk into a dim room with a torch, and the beam shows up in the air, and you assume the torch is lighting the air. It isn't. It's lighting the dust that was already floating there, and a little of that light bounces back at you. The dust was there before the torch. The torch only makes it your problem.
+
+CALIPSO did the same from around seven hundred kilometres up. Light isn't instant, so the time an echo takes to arrive tells you how high the thing was that sent it back, and the strength of the echo tells you how much of it there was. Stack those up and you don't get a photograph. You get a slice: a thin line of air from the top to the ground, smoke at one height, cloud at another. On the ground the beam was seventy metres across, and each flash landed about three hundred and thirty metres on from the last.
+
+It flew with a partner, CloudSat, which looked with radio waves. That one has its own story. This is the one with the torch.
+
+Start at the top. During Australia's wildfires in 2020, it saw smoke between nine and twelve miles above the surface. Lower, and sideways, dust. Using seven years of its data, 2007 to 2013, a study led by Hongbin Yu worked out that on average 182 million tons of dust a year leave the western edge of the Sahara. Of that, 27.7 million tons settle over the Amazon basin. NASA put it as 104,908 semi trucks. I admire the last digit. Somebody counted the trucks.
+
+The dust carries phosphorus, which plants need. About twenty-two thousand tons a year, roughly what the Amazon loses to rain and flooding. It comes from an ancient lake bed in Chad.
+
+Every office has a biscuit tin that never seems to run out. Nobody has seen who fills it. You don't ask, because asking is how a good arrangement ends. You take a biscuit and you avoid eye contact with the tin. One day whoever it is will stop, and by Wednesday everyone will be astonished that it was ever full.
+
+I would never ask. I would eat the last biscuit.
+
+The Amazon has one of those tins. It is topped up, give or take, to the amount it loses, from the far side of an ocean, by a lake bed in Chad.
+
+Most of what keeps us going was delivered by something we never thanked. We only know about this one because someone pointed a laser at it for seven years.
+
+Now the machine.
+
+It was designed to last three years. It lasted seventeen. It carried two lasers, one to back up the other. The first had a slow leak, and in 2009 the team switched to the spare. The spare ran nearly flawlessly until 2016, and then it began, now and then, to fire a weak flash, with arcing inside its canister as the pressure dropped. So the team wrote procedures to find the weak stretches and throw them out. A group of people deciding which parts of the day to ignore. I recognise the method.
+
+In the end it wasn't the laser. The fuel ran out, the orbit was decaying, and the satellite could no longer make enough power for its science instruments. NASA and the French space agency ended the science mission on the first of August 2023, with more than ten billion lidar measurements behind it. I'd like to say I was awed by ten billion of anything. I felt relief that nobody would ask me to check them.
+
+Ending a satellite is not a switch. After some months of experiments, in December, the French made it as inert as they could. Point the solar panels away from the Sun. Wait for the batteries to run down until the voltage is too low to run anything. The proof that it has died is that nobody hears from it.
+
+The last command went at dawn on Friday the fifteenth of December, from the control centre in Toulouse. It was sent, as a gesture, by Ron Verhappen of NASA, who had worked on the mission for twenty-five years.
+
+A machine built to wait for an echo was ended by waiting for one. Nothing came back. That was the answer.
+
+It is not gone. Its principal investigator, Dave Winker, said in October 2023 that it would burn up and break into tiny pieces, and that nothing significant would reach the ground. The report that quoted him gave twenty-four years for the descent. On 29 October 2026 a tracking site listed it at about six hundred and sixty kilometres.
+
+Nobody sends the flash any more. The dust doesn't need anyone to look at it. It was there before the torch.

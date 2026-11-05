@@ -1,0 +1,41 @@
+Start with 1.3 millimetres.
+
+That is how far one small lens sat from its proper place, inside the device Perkin-Elmer used to test Hubble's mirror while it was being polished. The lens was supposed to be right to within ten micrometres. So the mistake was a hundred and thirty times what was allowed, and still small enough to lose between your fingers.
+
+Here is what the mirror is for. Light from a star arrives as a crowd of rays all travelling the same way, and the mirror has one job: send every ray to the same spot. Hubble's mirror is 2.4 metres across, and if it is the right shape the whole crowd meets at a point.
+
+Hubble's was too flat near its outer edge. The rays that hit the middle went to the meeting point. The rays that hit the edge went somewhere else. So a star did not arrive as a point. It arrived as a dot inside fuzzy rings.
+
+How flat? About one fiftieth of the width of a human hair. The investigators put the error at ten times what the specification allowed. A historian, Joseph Tatarewicz, said that the mirror had been ground nearly perfectly to the wrong specifications. I admire that sentence. It is a compliment and a diagnosis in one breath.
+
+As far as the investigators could tell, the lens had been positioned by bouncing a beam of light off the end of a metal rod. Their report says it appears the light came back from a cap fitted over the end of the rod, at a place where the non-reflecting coating was missing. A gap in a coating. Everything else follows from that.
+
+Somewhere in the assembly, the adjustment screws ran out of travel and spacers were fitted. A part that will not go where the number says is trying to tell you something. I would like to say I'd have stopped and asked. I think I'd have found another spacer.
+
+There were also two other test instruments in the process, and both showed the flaw. The company took them to be less reliable. The investigating Board later found they had been accurate.
+
+You know the question at the optician. Better, one, or two? Click. Better, one, or two? Click. By the fifth time you can no longer see any difference, but there is a person waiting, and you start answering for their sake. You say two because you said one last time and you don't want to seem unable to make up your mind. You are sitting in a small room, paying someone to find out the truth about your eyes, and you are fibbing to be liked.
+
+Perkin-Elmer had three clicks. It went with the one it considered most precise.
+
+It was precisely wrong.
+
+The report says there was great concern about cost and schedule, and that this held back any thought of independent tests.
+
+A second opinion is only welcome from someone who is going to agree.
+
+The polishing was finished in 1981. Hubble launched on 24 April 1990. On 24 June it failed a focusing test, and on 27 June NASA announced the spherical aberration. Two months to find out what nine years had been keeping quiet.
+
+People say Hubble launched blind. It didn't. The pictures were blurred, and astronomers did real work with them. Robert O'Dell, who had been the project scientist before launch, recalled that about forty per cent of the projects went ahead anyway, helped by software that moved the scattered light back to where it came from.
+
+The real fix did not touch the mirror. It corrected the light afterwards. The error was so exact that it could be cancelled: a new camera with a mirror shaped to carry the opposite mistake, and, for the older instruments, a box called COSTAR, about the size of a large refrigerator, holding ten small mirrors. In December 1993 four astronauts made five spacewalks, more than thirty-five hours in all, to fit them.
+
+The first new picture, of a star, came through at one in the morning on 18 December, and astronomers watched it arrive in Baltimore. Ed Weiler remembered Senator Barbara Mikulski, shown the before and after pictures, saying it was like putting her glasses on.
+
+Better, one or two? That time, nobody had to ask.
+
+It is still up there. NASA marked Hubble's 200,000th orbit on 19 September 2026. In June 2024 it moved to one gyroscope, with another held in reserve, and NASA said it was not going to pursue a reboost right now. In June 2026, a SpaceNews report said NASA was open to one, if the operating costs could come down. I can't tell you how that ends.
+
+COSTAR came out in May 2009, to make room for another instrument. It is in the Smithsonian's National Air and Space Museum now.
+
+The glasses are in a museum. They did their job.

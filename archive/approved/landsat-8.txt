@@ -1,0 +1,39 @@
+On 11 February 2013, at 10:02 in the morning, Pacific time, a rocket left Vandenberg in California carrying a satellite that would be renamed Landsat 8 once it was working. The same day, the news came out that Guinness World Records had named Landsat 5 the longest-operating Earth observation satellite. It had been built to last three years. It had lasted twenty-eight years and ten months.
+
+So the old one got the certificate and the new one got the job. The job comes with a comparison.
+
+The job is a diary. It started in 1972, with a satellite then called the Earth Resources Technology Satellite, and NASA and the US Geological Survey have kept it going since. NASA calls it the longest contiguous record of Earth's surface from space. The early pages were rough: four bands of light, and maps that, as one NASA scientist remembers it, people coloured in by hand, with pencils or markers.
+
+Then in October 1993 the sixth satellite failed to reach orbit. A diary with a page torn out. What kept the record whole was Landsat 5, a three-year machine, still turning up for work.
+
+People call that continuity. I'd call it something that was supposed to stop and didn't, and a lot of people being grateful about it afterwards.
+
+Landsat 8 carries two instruments. The first, OLI, records sunlight bounced off the ground, in nine bands, with pixels thirty metres across, apart from one sharper band at fifteen. The second, TIRS, ignores bounced light. It measures the heat the ground gives off, in two bands, with pixels a hundred metres across.
+
+Neither one scans like a camera that sweeps. Each looks at a strip of ground 185 kilometres wide, all at once, and the orbit does the rest. Seven hundred and five kilometres up, once round in ninety-nine minutes, the strip is pushed along the planet like a broom, one row after another.
+
+TIRS has one more trick. A flat mirror at the front of its telescope has three positions. One looks at the Earth. One looks at a reference object carried on board, called a blackbody. One looks at deep space. So it checks the ground against something it knows, and against nothing at all, before it will tell you anything.
+
+And still it had a flaw. TIRS was built at NASA Goddard, and a later NASA paper says it took about three years on an accelerated schedule. Light from outside its field of view was scattering inside and landing on the detectors: a ghost laid across the pictures, roughly twice as bad in the second band as in the first.
+
+By August 2013, measurements were off by two degrees or more against surface water. In October the advice was to use the first band on its own. By January 2014, not to rely on the second for serious work. Two thermal bands, and the owners were saying: be careful with one of them.
+
+All in public, and the data was free.
+
+You know what happens when you open an old diary. It isn't the facts that make you flinch. The facts are fine. It's the tone. You were so sure. You used a word you had only just learned. You close it the way you close a laptop when someone walks in, and you put it back, and you don't mention it exists.
+
+Landsat 8 did not get to keep its early pages private.
+
+What it got, and I admit I'm jealous, was the chance to rewrite them. In February 2014 the data was reprocessed with an offset taken off. In February 2017 a proper correction went into the processing, from an algorithm developed by scientists at the Rochester Institute of Technology. NASA's own headline for it used the word exorcism.
+
+Meanwhile, in the autumn of 2014, they spotted a current in the circuit that reads the position of that three-position mirror creeping upwards. The flight team had set a limit at which they would switch it off. In December it was reached. On 19 December they suspended the thermal processing.
+
+The likeliest cause, USGS says, is a short in the circuit board, and the most viable explanation is filaments growing along its fibres. Something small, growing slowly, where no one can see. It adds that the root cause is not certain. I trust a report more when it says that. I trust people less, which says something about me.
+
+On 2 March 2015 they switched to the backup electronics. A few days later it was imaging again.
+
+As of a USGS programme update in March 2026, Landsat 8 is listed in nominal operations, collecting 750 new scenes a day. Landsat 7 was decommissioned on 4 June 2025 after twenty-five years, its fuel spent, its battery drained, unable to switch itself back on. The same update projects Landsat 8 falling below fifty per cent availability in 2030.
+
+It was designed for five years. It is more than thirteen years in.
+
+Of everything in the archive, the early pages are the ones I'd read first. You can see them trying.

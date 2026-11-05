@@ -1,0 +1,35 @@
+Half past ten in the morning. That was the appointment.
+
+Not yours. A satellite's. Terra was launched in December 1999 and told to cross the equator at that time, every day, with the sun at the same height each time it looked. For the first two years it was a quarter to eleven, and after that it was half past ten.
+
+The reason is dull and sensible. If you want to know whether a forest is shrinking, you can't compare a photograph from breakfast with one from lunchtime. The shadows lie. So you fix the hour and keep it for years, and the only thing that changes in the picture is the planet.
+
+The main instrument is called MODIS, and it isn't quite a camera. It has a two-sided mirror, and the mirror turns without stopping. It swings the view from one edge of the ground to the other, fifty-five degrees either way from straight down. Each swing reads a strip of the surface. The satellite carries on, the next swing reads the strip beside it, and the picture is ploughed into existence a furrow at a time. Everything that comes in is split into thirty-six bands of light, some of them far down in the infrared, where your eyes are no use at all.
+
+The strip is 2,330 kilometres across. Do that for long enough and you have covered the whole planet in a day or two.
+
+The mechanism behind that mirror was built to turn for six years without a break. That was the plan. Terra has now done more than a hundred thousand orbits, and the mirror is still being asked.
+
+Keeping the appointment cost fuel. About four times a year, the team nudged the orbit to hold the hour. On the twenty-seventh of February 2020 they did it for the last time. NASA says the fuel that was left was to be kept for bringing Terra down in a controlled way at the end.
+
+So the last thing it is saving up for is its own disposal. I call that sensible. I have made no such arrangements myself.
+
+After that, the hour began to slip. Earlier, never later. By the autumn of 2022 the crossing was at a quarter past ten. A forecast made in 2020 had it reaching nine o'clock by December 2025. Nobody is stopping it.
+
+There is a person in every building who has done the same job for longer than you have been there. The post, the keys, the thing that makes the heating come on. You have never thanked them. You meant to, in your first year. By your third, it would have needed an explanation. By your tenth it would have been a scene. So you nod in the corridor, they nod back, and what began as a sentence has hardened into a structure.
+
+Terra has been turning up since 1999.
+
+It has paid for it. The batteries have degraded, and power has had to be rationed. MOPITT, the instrument that measures carbon monoxide, was switched off in April 2025, to save power for the rest. One of the two CERES units no longer works. The short-wave infrared part of ASTER is no longer operational.
+
+On the twenty-sixth of March 2026, Terra had an anomaly, and MODIS was put into standby. The notice does not say why. The next day it was back in science mode, and the data from the gap were marked as questionable. I know the feeling. I'd get the same label.
+
+I would like to say I admire all this. Mostly I feel judged. It gets up earlier every year, on less, and nobody sends a card.
+
+We do not thank the thing that works. We keep the thanks back like fuel, rationed carefully, saved for a better occasion, and what we usually find is that the occasion is the one where it cannot hear us.
+
+NASA's latest projection, in a note dated December 2025 and updated in March, puts the end of science at February 2027. The note is careful to add that this is not an immediate ending. I can find nothing more recent that says otherwise.
+
+Half past ten is a long way behind it now. It crosses earlier than that, and it keeps crossing earlier.
+
+I would like to say thank you while it is still early.
