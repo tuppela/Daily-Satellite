@@ -4,8 +4,8 @@
   --bg: #f1f1f1;
   --ink: #1a1a1a;
   --sans: 'Inter', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --card: rgba(226, 226, 226, 0.94);
-  --plate: rgba(205, 205, 205, 0.94);
+  --card: rgb(226, 226, 226);
+  --plate: rgb(205, 205, 205);
   --ink-soft: rgba(26, 26, 26, 0.55);
   --ink-ghost: rgba(26, 26, 26, 0.07);
   --panel-ghost: rgba(26, 26, 26, 0.12);
@@ -189,8 +189,6 @@ html, body {
   display: flex;
   flex-direction: column;
   background: var(--card);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
   border-radius: 30px;
   overflow: hidden;
 }
@@ -294,8 +292,6 @@ html, body {
   margin-top: -34px;
   padding: 50px 26px 22px;
   background: var(--plate);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
   border-radius: 0 0 30px 30px;
 }
 #panel-chips {
@@ -349,9 +345,7 @@ html, body {
   align-items: center;
   gap: 12px;
   padding: 0 14px 0 16px;
-  background: rgba(226, 226, 226, 0.94);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  background: rgb(226, 226, 226);
   border-radius: 38px;
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.1));
   opacity: 0;
