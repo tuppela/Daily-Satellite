@@ -204,10 +204,9 @@ function lookAt(env, id) {
 
 test("boot: valid satellites become labels, junk is dropped, status is honest", async () => {
   const env = await booted();
-  assert.deepEqual(env.labels().map(l => l.textContent), ["ISS", "HUBBLE SPACE TELESCOPE", "TERRA"]);
+  assert.deepEqual(env.labels().map(l => l.textContent), ["ISS", "Hubble Space Telescope", "Terra"]);
   assert.equal(env.$("sat-count").textContent, "3 objects tracked");
   assert.ok(env.$("masthead").classList.contains("visible"));
-  assert.match(env.$("clock").textContent, /UTC$/);
   env.w.close();
 });
 
@@ -341,13 +340,13 @@ test("narrator: listen, pause, resume; switching satellite stops the old voice",
   btn.click();
   assert.equal(env.audios.length, 1);
   assert.equal(env.audios[0].src, "/api/narrate/iss/abc.mp3", "content-addressed url from the server");
-  assert.equal(btn.textContent, "◼ Pause");
+  assert.equal(btn.dataset.state, "playing");
   btn.click();
-  assert.equal(btn.textContent, "▶ Resume");
+  assert.equal(btn.dataset.state, "paused");
   btn.click();
-  assert.equal(btn.textContent, "◼ Pause");
+  assert.equal(btn.dataset.state, "playing");
 
-  env.label("TERRA").click();
+  env.label("Terra").click();
   assert.equal(env.audios[0].paused, true, "old narration stopped");
   assert.equal(env.audios[0].src, "", "and released");
   assert.equal(btn.disabled, true, "no Listen until the new story is in");
@@ -360,9 +359,9 @@ test("narrator: listen, pause, resume; switching satellite stops the old voice",
 test("a slow story never lands on the wrong panel", async () => {
   const env = await booted();
   env.storyDelay.hubble = 60;
-  env.label("HUBBLE SPACE TELESCOPE").click();
+  env.label("Hubble Space Telescope").click();
   await env.wait(5);
-  env.label("TERRA").click();
+  env.label("Terra").click();
   await env.wait(100);
   assert.equal(env.$("panel-sat-name").textContent, "Terra");
   assert.equal(env.$("panel-text-content").querySelector("p").textContent, "The entry for terra.");
@@ -384,6 +383,8 @@ test("closing: releases the camera, restores labels and zoom, stops audio", asyn
   assert.ok(env.labels().every(l => !l.classList.contains("tracked")));
   assert.equal(env.map.scrollZoom.opts, undefined, "zoom back to normal");
   assert.equal(env.audios[0].paused, true);
+  assert.equal(env.map.flyCalls.length, 2, "and eases back out to the globe");
+  assert.ok(env.map.flyCalls[1].zoom <= 2);
   env.w.close();
 });
 
@@ -410,18 +411,97 @@ test("rotation: turns about the poles only when zoomed out and idle", async () =
   env.w.close();
 });
 
-test("daily card: rotates by UTC day and behaves exactly like clicking the label", async () => {
+test("waiting card: appears on its own, previews the catalogue line, opens like a label click, silently", async () => {
   const env = await booted();
-  const name = env.$("daily-card-name").textContent;
+  assert.equal(env.$("info-panel").classList.contains("visible"), false, "not at once");
+  await new Promise(r => setTimeout(r, 1300));
+  const panel = env.$("info-panel");
+  assert.ok(panel.classList.contains("visible") && panel.classList.contains("idle"));
+  const name = env.$("panel-sat-name").textContent;
   assert.ok(["ISS", "Hubble Space Telescope", "Terra"].includes(name), "picks an available satellite: " + name);
-  assert.match(env.$("daily-card-issue").textContent, /^Issue No\. \d+ — Daily Satellite$/);
+  assert.equal(env.map.flyCalls.length, 0, "arriving costs nothing");
 
-  env.$("daily-card").click();
+  panel.click();
   await env.wait(5);
-  const label = env.labels().find(l => l.textContent === name.toUpperCase());
+  const label = env.labels().find(l => l.textContent === name);
   assert.ok(label.classList.contains("tracked"), "its label hides, like a label click");
   assert.equal(env.map.flyCalls.length, 1, "and it flies there");
+  assert.ok(!panel.classList.contains("idle"));
+  assert.equal(env.audios.length, 0, "opening is silent");
+  env.w.close();
+});
+
+test("waiting card: pressing play opens it and starts the voice", async () => {
+  const env = await booted();
+  await new Promise(r => setTimeout(r, 1300));
+  env.$("ctrl-listen").click();
+  await env.wait(5);
+  assert.equal(env.audios.length, 1);
+  assert.equal(env.$("ctrl-listen").dataset.state, "playing");
+  env.w.close();
+});
+
+test("collapse: the panel becomes a pill, the voice carries on, expand brings it back", async () => {
+  const env = await booted();
+  env.label("ISS").click();
+  await env.wait(5);
+  env.$("ctrl-listen").click();
+  env.$("ctrl-collapse").click();
+  assert.ok(!env.$("info-panel").classList.contains("visible"));
+  assert.ok(env.$("mini-player").classList.contains("visible"));
+  assert.equal(env.$("mini-title").textContent, "ISS");
+  assert.equal(env.$("mini-play").dataset.state, "playing", "pill mirrors the voice");
+  env.$("mini-play").click();
+  assert.equal(env.$("ctrl-listen").dataset.state, "paused");
+  env.$("mini-expand").click();
   assert.ok(env.$("info-panel").classList.contains("visible"));
+  assert.ok(!env.$("mini-player").classList.contains("visible"));
+  env.w.close();
+});
+
+test("collapsed pill: closing it lets the label carry on", async () => {
+  const env = await booted();
+  env.label("ISS").click();
+  await env.wait(5);
+  env.$("ctrl-collapse").click();
+  env.$("mini-close").click();
+  assert.ok(!env.$("mini-player").classList.contains("visible"));
+  assert.equal(env.w.__ds.scene.trackedId, null);
+  env.w.close();
+});
+
+test("previous and next: catalogue order, wrap round, voice carries over, silence stays silent", async () => {
+  const env = await booted();
+  env.label("ISS").click();
+  await env.wait(5);
+  env.$("ctrl-next").click();
+  await env.wait(5);
+  assert.equal(env.$("panel-sat-name").textContent, "Hubble Space Telescope");
+  assert.equal(env.audios.length, 0, "reading stays silent");
+  env.$("ctrl-prev").click();
+  env.$("ctrl-prev").click();
+  await env.wait(5);
+  assert.equal(env.$("panel-sat-name").textContent, "Terra", "wraps round at the start");
+
+  await env.wait(5);
+  env.$("ctrl-listen").click();
+  env.$("ctrl-next").click();
+  await env.wait(10);
+  assert.equal(env.$("panel-sat-name").textContent, "ISS", "wraps round at the end");
+  assert.equal(env.audios.length, 2, "the voice carried over");
+  assert.equal(env.$("ctrl-listen").dataset.state, "playing");
+  env.w.close();
+});
+
+test("share: still there, copies the link", async () => {
+  const env = await booted();
+  let copied = null;
+  Object.defineProperty(env.w.navigator, "clipboard", { value: { writeText: async t => { copied = t; } }, configurable: true });
+  env.label("ISS").click();
+  await env.wait(5);
+  env.$("ctrl-share").click();
+  await env.wait(5);
+  assert.match(copied, /\/s\/iss$/);
   env.w.close();
 });
 
@@ -487,7 +567,7 @@ test("following: the spoken line leans in furthest, its neighbours less, and the
 });
 
 test("following: without exact timings it estimates from how far through the text each word is", async () => {
-  const env = await openedStory("terra", "TERRA");
+  const env = await openedStory("terra", "Terra");
   env.$("ctrl-listen").click();
   const a = env.audios[0];
   a.duration = 8;
@@ -511,7 +591,7 @@ test("the reader scrolls: the voice pauses and the text stays put; play glides b
 
   body.dispatchEvent(new env.w.Event("wheel"));
   assert.equal(a.paused, true, "scrolling by hand pauses the voice");
-  assert.equal(btn.textContent, "▶ Resume");
+  assert.equal(btn.dataset.state, "paused");
   body.scrollTop = 40;                             // the reader has gone back up
   env.run(1000);
   assert.equal(body.scrollTop, 40, "the text does not fight the reader");

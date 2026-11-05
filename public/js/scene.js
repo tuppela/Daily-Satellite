@@ -21,6 +21,8 @@ function createScene(map, projector) {
   const labelLayer = document.getElementById("sat-labels");
 
   const FLY_MS = 2800;
+  const HOME_ZOOM = 1.8;      // the whole-globe view the page opens with
+  const HOME_MS = 2000;
   const RECOVER_MS = 650;
   const ROTATE_DEG_PER_SEC = (360 / 86164) * 6;   // 6x sidereal
   const ROTATE_MAX_ZOOM = 3.5;
@@ -88,7 +90,7 @@ function createScene(map, projector) {
     sats = list.map(({ meta, satrec }) => {
       const el = document.createElement("div");
       el.className = "sat-label";
-      el.textContent = meta.name.toUpperCase();
+      el.textContent = meta.name;
       el.style.visibility = "hidden";
       el.addEventListener("click", e => { e.stopPropagation(); selectHandler(meta.id); });
       labelLayer.appendChild(el);
@@ -153,12 +155,18 @@ function createScene(map, projector) {
     });
   }
 
-  function release() {
+  // Let go of the satellite. With home: true the camera also eases back out
+  // to the whole globe (unless the reader is already zoomed out), so the label
+  // carries on its journey in view instead of leaving a close-up behind.
+  function release({ home = false } = {}) {
     trackedId = null;
     cam.mode = "free";
     for (const o of sats) o.el.classList.remove("tracked");
     anchorZoomToCentre(false);
     noteInteraction();              // rotation resumes after the usual pause
+    if (home && map.getZoom() > HOME_ZOOM + 1) {
+      map.flyTo({ zoom: HOME_ZOOM, pitch: 0, duration: HOME_MS, easing: easeInOut, essential: true });
+    }
   }
 
   function updateCamera(now, dt) {
