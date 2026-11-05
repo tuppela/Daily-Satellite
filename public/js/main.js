@@ -39,10 +39,10 @@
     map.setPaintProperty("satellite", "raster-brightness-min", 0.02);
     map.setPaintProperty("satellite", "raster-hue-rotate", 6);
     map.setFog({
-      color: "#f0ebe0",
-      "high-color": "#c8bfb0",
+      color: "#f1f1f1",
+      "high-color": "#cdcdcd",
       "horizon-blend": 0.08,
-      "space-color": "#f0ebe0",
+      "space-color": "#f1f1f1",
       "star-intensity": 0,
     });
   });
@@ -74,7 +74,7 @@
     scene.start();
     ui.setStatus(usable.length
       ? `${usable.length} objects tracked`
-      : "Orbital data unavailable. Try again shortly.");
+      : "Orbital data unavailable. Try again shortly.", usable.length > 0);
     ui.showDailyCard(catalogue, new Set(usable.map(u => u.meta.id)));
     ui.openFromUrl();          // a shared link opens its entry; the card then stays hidden
   };
