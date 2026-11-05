@@ -281,10 +281,10 @@ html, body {
   align-items: center;
   padding: 4px 20px 20px;
 }
-.ctrl-start { justify-self: start; }
+.ctrl-start { justify-self: start; display: flex; gap: 8px; }
 .ctrl-mid { display: flex; align-items: center; gap: 14px; }
 .ctrl-end { justify-self: end; display: flex; gap: 8px; }
-#info-panel.idle .ctrl-end { visibility: hidden; }
+#info-panel.idle .ctrl-end, #info-panel.idle #ctrl-share { visibility: hidden; }
 
 /* The plate under the card: what this is */
 #panel-plate {
@@ -404,8 +404,6 @@ html, body {
   .play .i-load { animation-duration: 2s; }
 }
 
-/* Share: confirms by turning solid for a moment */
-#ctrl-share.done { background: #262626; color: #fff; }
 
 /* Share: confirms by turning solid for a moment */
 #ctrl-share.done { background: #262626; color: #fff; }
