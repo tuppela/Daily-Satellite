@@ -153,14 +153,14 @@ html, body {
 .play[data-state="error"] .i-play { display: block; }
 .play[data-state="playing"] .i-pause { display: block; }
 .play[data-state="loading"] .i-load { display: block; }
+/* Loading: a cassette hub with six teeth, winding anticlockwise like the
+   take-up reel. HUB_TURN is one revolution. */
 .play .i-load {
-  width: 20px; height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  --hub-turn: 0.5s;
+  width: 24px; height: 24px;
+  animation: hub-wind var(--hub-turn) linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes hub-wind { to { transform: rotate(-360deg); } }
 
 /* ─── STORY PLAYER ───────────────────────────────────────────────────── */
 #info-panel {
@@ -388,7 +388,7 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   #info-panel, #mini-player, .sat-label { transition: none; }
-  .play .i-load { animation-duration: 2s; }
+  .play .i-load { --hub-turn: 2s; }
 }
 
 
